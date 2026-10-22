@@ -1,0 +1,646 @@
+{
+  "2024_신설": {
+    "year": 2024,
+    "type": "신설",
+    "core": [
+      {
+        "label": "입학충원률",
+        "categoryMax": 20,
+        "methodDegree": "(최종 등록자 수/학과입학정원)*배점",
+        "methodVoc": "(입학 확정 인원/학과입학정원)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": true
+          }
+        ]
+      },
+      {
+        "label": "재학생비율",
+        "categoryMax": 20,
+        "methodDegree": "(2학년 재학생 수/입학정원)*배점",
+        "methodVoc": "(재학생 수 /입학정원)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": false
+          }
+        ]
+      },
+      {
+        "label": "취업률",
+        "categoryMax": 20,
+        "methodDegree": "(10.31일자 고용보험 취업자 수/취업대상자수)*배점",
+        "methodVoc": "(3.31일자 고용보험 취업자 수/취업대상자수)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": null,
+            "included": false
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": false
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": false
+          }
+        ]
+      }
+    ],
+    "teacher": [
+      {
+        "label": "개편 교원의 전공 연수 참여율 실적",
+        "method": "(기준시간 이수 교원수/소속학과교원수)*배점",
+        "max": 5
+      },
+      {
+        "label": "전공 분야 평균 연수 시간",
+        "method": "(교원 연수시간 총합/학과소속 교원수)*배점",
+        "max": 5
+      }
+    ],
+    "equipment": [
+      {
+        "label": "학과 특성을 고려한 장비 운영 실적(1천만원 이상, 교과내용 적합)",
+        "method": "(전체고가장비활용시간/고가장비활용계획시간)*배점",
+        "max": 10
+      },
+      {
+        "label": "장비관리실적(1천만원 이상, 신설시 구입 장비 전체)",
+        "method": "자산관리번호, 장비이력카드, 주의사항, 사용설명서, 매뉴얼 등(지적 건수 * 0.3점 감점)",
+        "max": 0
+      }
+    ],
+    "promotion": [
+      {
+        "label": "외부 홍보 실적",
+        "method": "(학과 홍보실적 건수 * 0.3점)\n*사업명과 학과명 필수 기재",
+        "max": 10
+      },
+      {
+        "label": "관련 업체 MOU 체결 실적 및 활동",
+        "method": "(MOU 체결 후 사업 건수 * 2점)\n* MOU후 실제 실적 건수가 있어야함",
+        "max": 10
+      }
+    ],
+    "bonus": [
+      {
+        "label": "우수사례 구체적 실적\n(최대3점)",
+        "method": "1. 학과 관련 법인채택 우수사례(0.5점/건)\n2. 전국단위 공모전 입상 (캠퍼스별 단위 공모전 제외)(0.5점/건)",
+        "max": "(+3)"
+      },
+      {
+        "label": "단기과정 운영(최대5점)",
+        "method": "1. 중장년특화과정(집중1, 집중2)\n2. 여성재취업훈련\n3. 이주배경구직자직업훈련\n4. AX과정\n  (1점/건)",
+        "max": "(+5)"
+      },
+      {
+        "label": "AI교과 운영(최대2점)",
+        "method": "1. 산업AI교과 편성 및 개설  (1점/건)",
+        "max": "(+3)"
+      },
+      {
+        "label": "고가장비활용 실적(1,000만원이상)\n(5점)",
+        "method": "1. 주 담당교원외 학과 교원들의 고가장비 활용 사례 \n2. 고가 장비 활용 내.외부 연수 운영 사례\n   (1점/건)",
+        "max": "(+5)"
+      }
+    ],
+    "penalty": [
+      {
+        "label": "장비도입",
+        "method": "1. 계획대비 장비 개강일 기준 미도입 건수\n   (장비계약 건당 1점 감점)",
+        "max": "(-3)"
+      },
+      {
+        "label": "부적절 행위 감점",
+        "method": "성관련, 직장내 괴롭힘, 갑질, 학생민원, 기관 브랜드 이미지에 역행하는 경우(최대 5점)",
+        "max": "(-5)"
+      }
+    ],
+    "quantTotal": 100
+  },
+  "2024_개편": {
+    "year": 2024,
+    "type": "개편",
+    "core": [
+      {
+        "label": "입학충원률",
+        "categoryMax": 20,
+        "methodDegree": "(최종 등록자 수/학과입학정원)*배점",
+        "methodVoc": "(입학 확정 인원/학과입학정원)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": true
+          }
+        ]
+      },
+      {
+        "label": "재학생비율",
+        "categoryMax": 20,
+        "methodDegree": "(2학년 재학생 수/입학정원)*배점",
+        "methodVoc": "(재학생 수 /입학정원)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": true
+          }
+        ]
+      },
+      {
+        "label": "취업률",
+        "categoryMax": 20,
+        "methodDegree": "(10.31일자 고용보험 취업자 수/취업대상자수)*배점",
+        "methodVoc": "(3.31일자 고용보험 취업자 수/취업대상자수)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": true
+          }
+        ]
+      }
+    ],
+    "teacher": [
+      {
+        "label": "개편 교원의 전공 연수 참여율 실적",
+        "method": "(기준시간 이수 교원수/소속학과교원수)*배점",
+        "max": 5
+      },
+      {
+        "label": "전공 분야 평균 연수 시간",
+        "method": "(교원 연수시간 총합/학과소속 교원수)*배점",
+        "max": 5
+      }
+    ],
+    "equipment": [
+      {
+        "label": "학과 특성을 고려한 장비 운영 실적(1천만원 이상, 교과내용 적합)",
+        "method": "(전체고가장비활용시간/고가장비활용계획시간)*배점",
+        "max": 10
+      },
+      {
+        "label": "장비관리실적(1천만원 이상, 신설시 구입 장비 전체)",
+        "method": "자산관리번호, 장비이력카드, 주의사항, 사용설명서, 매뉴얼 등(지적 건수 * 0.3점 감점)",
+        "max": null
+      }
+    ],
+    "promotion": [
+      {
+        "label": "외부 홍보 실적",
+        "method": "(학과 홍보실적 건수 * 0.3점)\n*사업명과 학과명 필수 기재",
+        "max": 10
+      },
+      {
+        "label": "관련 업체 MOU 체결 실적 및 활동",
+        "method": "(MOU 체결 후 사업 건수 * 2점)\n* MOU후 실제 실적 건수가 있어야함",
+        "max": 10
+      }
+    ],
+    "bonus": [
+      {
+        "label": "우수사례 구체적 실적\n(최대3점)",
+        "method": "1. 학과 관련 법인채택 우수사례(0.5점/건)\n2. 전국단위 공모전 입상 (캠퍼스별 단위 공모전 제외)(0.5점/건)",
+        "max": "(+3)"
+      },
+      {
+        "label": "단기과정 운영(최대5점)",
+        "method": "1. 중장년특화과정(집중1, 집중2)\n2. 여성재취업훈련\n3. 이주배경구직자직업훈련\n4. AX과정\n  (1점/건)",
+        "max": "(+5)"
+      },
+      {
+        "label": "AI교과 운영(최대2점)",
+        "method": "1. 산업AI교과 편성 및 개설  (1점/건)",
+        "max": "(+3)"
+      },
+      {
+        "label": "고가장비활용 실적(1,000만원이상)\n(5점)",
+        "method": "1. 주 담당교원외 학과 교원들의 고가장비 활용 사례 \n2. 고가 장비 활용 내.외부 연수 운영 사례\n   (1점/건)",
+        "max": "(+5)"
+      }
+    ],
+    "penalty": [
+      {
+        "label": "장비도입",
+        "method": "1. 계획대비 장비 개강일 기준 미도입 건수\n   (장비계약 건당 1점 감점)",
+        "max": "(-3)"
+      },
+      {
+        "label": "부적절 행위 감점",
+        "method": "성관련, 직장내 괴롭힘, 갑질, 학생민원, 기관 브랜드 이미지에 역행하는 경우(최대 5점)",
+        "max": "(-5)"
+      }
+    ],
+    "quantTotal": 100
+  },
+  "2025_신설": {
+    "year": 2025,
+    "type": "신설",
+    "core": [
+      {
+        "label": "입학충원률",
+        "categoryMax": 30,
+        "methodDegree": "(최종 등록자 수/학과입학정원)*배점",
+        "methodVoc": "(입학 확정 인원/학과입학정원)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": true
+          }
+        ]
+      },
+      {
+        "label": "재학생비율",
+        "categoryMax": 30,
+        "methodDegree": "(2학년 재학생 수/입학정원)*배점",
+        "methodVoc": "(재학생 수 /입학정원)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": true
+          }
+        ]
+      },
+      {
+        "label": "취업률",
+        "categoryMax": 0,
+        "methodDegree": "(10.31일자 고용보험 취업자 수/취업대상자수)*배점",
+        "methodVoc": "(3.31일자 고용보험 취업자 수/취업대상자수)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": false
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": false
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": false
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": false
+          }
+        ]
+      }
+    ],
+    "teacher": [
+      {
+        "label": "개편 교원의 전공 연수 참여율 실적",
+        "method": "(기준시간 이수 교원수/소속학과교원수)*배점",
+        "max": 5
+      },
+      {
+        "label": "전공 분야 평균 연수 시간",
+        "method": "(교원 연수시간 총합/학과소속 교원수)*배점",
+        "max": 5
+      }
+    ],
+    "equipment": [
+      {
+        "label": "학과 특성을 고려한 장비 운영 실적(1천만원 이상, 교과내용 적합)",
+        "method": "(전체고가장비활용시간/고가장비활용계획시간)*배점",
+        "max": 5
+      },
+      {
+        "label": "장비관리실적(1천만원 이상, 신설시 구입 장비 전체)",
+        "method": "자산관리번호, 장비이력카드, 주의사항, 사용설명서, 매뉴얼 등(지적 건수 * 0.3점 감점)",
+        "max": 5
+      }
+    ],
+    "promotion": [
+      {
+        "label": "외부 홍보 실적",
+        "method": "(학과 홍보실적 건수 * 0.3점)\n*사업명과 학과명 필수 기재",
+        "max": 10
+      },
+      {
+        "label": "관련 업체 MOU 체결 실적 및 활동",
+        "method": "(MOU 체결 후 사업 건수 * 2점)\n* MOU후 실제 실적 건수가 있어야함",
+        "max": 10
+      }
+    ],
+    "bonus": [
+      {
+        "label": "우수사례 구체적 실적\n(최대3점)",
+        "method": "1. 학과 관련 법인채택 우수사례(0.5점/건)\n2. 전국단위 공모전 입상 (캠퍼스별 단위 공모전 제외)(0.5점/건)",
+        "max": "(+3)"
+      },
+      {
+        "label": "단기과정 운영(최대5점)",
+        "method": "1. 중장년특화과정(집중1, 집중2)\n2. 여성재취업훈련\n3. 이주배경구직자직업훈련\n4. AX과정\n  (1점/건)",
+        "max": "(+5)"
+      },
+      {
+        "label": "AI교과 운영(최대2점)",
+        "method": "1. 산업AI교과 편성 및 개설  (1점/건)",
+        "max": "(+3)"
+      },
+      {
+        "label": "고가장비활용 실적(1,000만원이상)\n(5점)",
+        "method": "1. 주 담당교원외 학과 교원들의 고가장비 활용 사례 \n2. 고가 장비 활용 내.외부 연수 운영 사례\n   (1점/건)",
+        "max": "(+5)"
+      }
+    ],
+    "penalty": [
+      {
+        "label": "장비도입",
+        "method": "1. 계획대비 장비 개강일 기준 미도입 건수\n   (장비계약 건당 1점 감점)",
+        "max": "(-3)"
+      },
+      {
+        "label": "부적절 행위 감점",
+        "method": "성관련, 직장내 괴롭힘, 갑질, 학생민원, 기관 브랜드 이미지에 역행하는 경우(최대 5점)",
+        "max": "(-5)"
+      }
+    ],
+    "quantTotal": 100
+  },
+  "2025_개편": {
+    "year": 2025,
+    "type": "개편",
+    "core": [
+      {
+        "label": "입학충원률",
+        "categoryMax": 20,
+        "methodDegree": "(최종 등록자 수/학과입학정원)*배점",
+        "methodVoc": "(입학 확정 인원/학과입학정원)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": true
+          }
+        ]
+      },
+      {
+        "label": "재학생비율",
+        "categoryMax": 20,
+        "methodDegree": "(2학년 재학생 수/입학정원)*배점",
+        "methodVoc": "(재학생 수 /입학정원)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": true
+          }
+        ]
+      },
+      {
+        "label": "취업률",
+        "categoryMax": 20,
+        "methodDegree": "(10.31일자 고용보험 취업자 수/취업대상자수)*배점",
+        "methodVoc": "(3.31일자 고용보험 취업자 수/취업대상자수)*배점",
+        "targets": [
+          {
+            "target": "학위과정",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "하이테크",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "전문기술",
+            "subMax": 10,
+            "included": true
+          },
+          {
+            "target": "중장년특화",
+            "subMax": 10,
+            "included": true
+          }
+        ]
+      }
+    ],
+    "teacher": [
+      {
+        "label": "개편 교원의 전공 연수 참여율 실적",
+        "method": "(기준시간 이수 교원수/소속학과교원수)*배점",
+        "max": 5
+      },
+      {
+        "label": "전공 분야 평균 연수 시간",
+        "method": "(교원 연수시간 총합/학과소속 교원수)*배점",
+        "max": 5
+      }
+    ],
+    "equipment": [
+      {
+        "label": "학과 특성을 고려한 장비 운영 실적(1천만원 이상, 교과내용 적합)",
+        "method": "(전체고가장비활용시간/고가장비활용계획시간)*배점",
+        "max": 5
+      },
+      {
+        "label": "장비관리실적(1천만원 이상, 신설시 구입 장비 전체)",
+        "method": "자산관리번호, 장비이력카드, 주의사항, 사용설명서, 매뉴얼 등(지적 건수 * 0.3점 감점)",
+        "max": 5
+      }
+    ],
+    "promotion": [
+      {
+        "label": "외부 홍보 실적",
+        "method": "(학과 홍보실적 건수 * 0.3점)\n*사업명과 학과명 필수 기재",
+        "max": 10
+      },
+      {
+        "label": "관련 업체 MOU 체결 실적 및 활동",
+        "method": "(MOU 체결 후 사업 건수 * 1점)\n* MOU후 실제 실적 건수가 있어야함",
+        "max": 10
+      }
+    ],
+    "bonus": [
+      {
+        "label": "우수사례 구체적 실적\n(최대3점)",
+        "method": "1. 학과 관련 법인채택 우수사례(0.5점/건)\n2. 전국단위 공모전 입상 (캠퍼스별 단위 공모전 제외)(0.5점/건)",
+        "max": "(+3)"
+      },
+      {
+        "label": "단기과정 운영(최대5점)",
+        "method": "1. 중장년특화과정(집중1, 집중2)\n2. 여성재취업훈련\n3. 이주배경구직자직업훈련\n4. AX과정\n  (1점/건)",
+        "max": "(+5)"
+      },
+      {
+        "label": "AI교과 운영(최대2점)",
+        "method": "1. 산업AI교과 편성 및 개설  (1점/건)",
+        "max": "(+3)"
+      },
+      {
+        "label": "고가장비활용 실적(1,000만원이상)\n(5점)",
+        "method": "1. 주 담당교원외 학과 교원들의 고가장비 활용 사례 \n2. 고가 장비 활용 내.외부 연수 운영 사례\n   (1점/건)",
+        "max": "(+5)"
+      }
+    ],
+    "penalty": [
+      {
+        "label": "장비도입",
+        "method": "1. 계획대비 장비 개강일 기준 미도입 건수\n   (장비계약 건당 1점 감점)",
+        "max": "(-3)"
+      },
+      {
+        "label": "부적절 행위 감점",
+        "method": "성관련, 직장내 괴롭힘, 갑질, 학생민원, 기관 브랜드 이미지에 역행하는 경우(최대 5점)",
+        "max": "(-5)"
+      }
+    ],
+    "quantTotal": 100
+  }
+}

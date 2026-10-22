@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>한국폴리텍대학 신설·개편학과 평가 시스템</title>
+<link rel="stylesheet" href="src/styles.css">
+<style>
+  /* 평가시스템 전용 보강 스타일 (styles.css 디자인 토큰 그대로 사용) */
+  .login-overlay{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(160deg,var(--c-navy-900),var(--c-navy-800) 55%,#123160);}
+  .login-card{background:var(--c-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);
+    width:380px;padding:36px 34px 30px;}
+  .login-card h1{font-size:18px;font-weight:800;color:var(--c-navy-800);text-align:center;margin:4px 0 26px;line-height:1.4;}
+  .login-card .field{margin-bottom:14px;}
+  .login-card .login-msg{color:var(--c-danger);font-size:12.5px;min-height:18px;text-align:center;margin-top:8px;}
+  .login-ver{text-align:center;font-size:11.5px;color:var(--c-text-mute);margin-top:18px;}
+  .eval-group{margin-bottom:20px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;}
+  .eval-group-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--c-bg-soft);font-weight:800;color:var(--c-navy-800);font-size:14px;border-bottom:1px solid var(--c-border);}
+  .muted{color:var(--c-text-mute);}
+  .brand-text{display:flex;flex-direction:column;line-height:1.3;}
+  .brand-text span{font-size:11px;color:#9fc0e8;font-weight:600;}
+  .eval-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .eval-table th{background:var(--c-bg-soft);color:var(--c-text-soft);font-weight:700;font-size:12px;padding:10px 12px;border-bottom:2px solid var(--c-border-strong);}
+  .eval-table td{padding:9px 12px;border-bottom:1px solid var(--c-border);text-align:center;}
+  .eval-table td.label-cell{text-align:left;font-weight:700;color:var(--c-text);}
+  .eval-table td.method-cell{text-align:left;font-size:12px;color:var(--c-text-soft);white-space:pre-line;}
+  .eval-table input[type=number]{width:84px;padding:7px 9px;font-size:13px;border:1px solid var(--c-border-strong);border-radius:7px;text-align:right;background:#fff;}
+  .eval-table input:disabled{background:var(--c-bg-soft);color:var(--c-text-mute);}
+  .eval-table tr.excluded-row td{color:var(--c-text-mute);background:var(--c-bg-soft);}
+  .score-summary{display:flex;gap:14px;margin:18px 0 20px;}
+  .score-summary .stat{flex:1;}
+  .score-summary .stat.total{background:linear-gradient(120deg,var(--c-navy-800),var(--c-blue-600));border-color:transparent;}
+  .score-summary .stat.total .s-label{color:#cfe0f5;}
+  .score-summary .stat.total .s-val{color:#fff;}
+  .form-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
+  .status-pill{font-size:12.5px;font-weight:700;padding:4px 12px;border-radius:999px;}
+  .status-pill.draft{background:var(--c-warn-bg);color:var(--c-warn);}
+  .status-pill.done{background:var(--c-success-bg);color:var(--c-success);}
+  #menuEntry .toolbar select, #menuEntry .toolbar input[type=text]{
+    padding:9px 12px;border:1px solid var(--c-border-strong);border-radius:var(--radius-sm);font-size:13.5px;background:#fff;}
+  #menuEntry .toolbar input[type=text]{flex:1;min-width:240px;}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="loginScreen" class="login-overlay">
+  <div class="login-card">
+    <h1>한국폴리텍대학<br>신설·개편학과 평가 시스템</h1>
+    <div class="field">
+      <label>아이디</label>
+      <div class="input-wrap"><input type="text" id="loginId" placeholder="아이디를 입력하세요"></div>
+    </div>
+    <div class="field">
+      <label>비밀번호</label>
+      <div class="input-wrap"><input type="password" id="loginPw" placeholder="비밀번호를 입력하세요"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:6px;" id="btnLogin">로그인</button>
+    <p class="login-msg" id="loginMsg"></p>
+    <p class="login-ver" id="loginVersion"></p>
+  </div>
+</div>
+
+<!-- 메인 -->
+<div id="appShell" class="app-shell" style="display:none;">
+  <header class="topbar">
+    <div class="brand" id="brandHome">
+      <div class="logo-badge">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 5-9 5-9-5 9-5z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><path d="M5 11v5c0 1.6 3.1 3 7 3s7-1.4 7-3v-5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </div>
+      <div class="brand-text">
+        <b>한국폴리텍대학 신설·개편학과 평가 시스템</b>
+        <span id="verBadge"></span>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <span id="userLabel" style="font-size:13px;opacity:.9;margin-right:10px;"></span>
+    <button class="home-btn" id="btnLogout">로그아웃</button>
+  </header>
+
+  <nav class="tabs" style="margin:0 26px;padding-top:14px;">
+    <button class="tab active" data-menu="entry">평가데이터 입력</button>
+    <button class="tab" data-menu="result">평가결과 조회</button>
+  </nav>
+
+  <main class="main">
+    <div class="container">
+
+      <!-- 평가데이터 입력 -->
+      <section id="menuEntry" class="menu-panel">
+        <div class="panel">
+          <div class="panel-head"><h2>평가대상 학과 조회</h2></div>
+          <div class="panel-body">
+            <div class="toolbar" style="margin-bottom:16px;">
+              <select id="fYear"><option value="">년도 전체</option><option value="2024">2024</option><option value="2025">2025</option></select>
+              <select id="fType"><option value="">구분 전체</option><option value="신설">신설</option><option value="개편">개편</option></select>
+              <select id="fField"><option value="">분야 전체</option></select>
+              <input type="text" id="fSearch" placeholder="대학-캠퍼스-학과 검색 (예: Ⅰ-성남-반도체시스템)">
+              <button class="btn btn-primary btn-sm" id="btnSearchDept">조회</button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="vtable" id="deptTable">
+                <thead><tr><th>코드</th><th>년도</th><th>구분</th><th>분야</th><th>대학</th><th>캠퍼스</th><th>학과명</th><th>상태</th><th></th></tr></thead>
+                <tbody id="deptTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 평가입력 폼 -->
+      <section id="menuForm" class="menu-panel" style="display:none;">
+        <div class="toolbar" style="margin-bottom:14px;">
+          <button class="btn btn-ghost btn-sm" id="btnBackToList">&larr; 목록으로</button>
+          <h2 id="formDeptTitle" style="margin:0;font-size:17px;color:var(--c-navy-800);"></h2>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="quant">정량평가</button>
+          <button class="tab" data-tab="bonus">가점/감점</button>
+        </div>
+
+        <div class="score-summary">
+          <div class="stat"><div class="s-label">정량평가 합계</div><div class="s-val" id="sumQuant">0</div></div>
+          <div class="stat"><div class="s-label">가점/감점 합계</div><div class="s-val" id="sumBonus">0</div></div>
+          <div class="stat total"><div class="s-label">최종점수</div><div class="s-val" id="sumTotal">0</div></div>
+        </div>
+
+        <div id="tabQuant"></div>
+        <div id="tabBonus" style="display:none;"></div>
+
+        <div class="form-footer">
+          <span id="statusLabel" class="status-pill draft"></span>
+          <div class="toolbar">
+            <button class="btn btn-soft" id="btnSave">저장</button>
+            <button class="btn btn-primary" id="btnFinalize">최종완료</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 평가결과 조회 -->
+      <section id="menuResult" class="menu-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head"><h2>평가결과 조회</h2></div>
+          <div class="panel-body">
+            <p style="color:var(--c-text-mute);">평가데이터 입력 기능 완료 후 추가 예정입니다.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <div class="home-footer" style="justify-content:center;background:transparent;">
+    <div class="prog-info" style="border-right:none;color:var(--c-text-mute);text-align:center;padding-right:0;">
+      <b id="footerVersion"></b>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>
