@@ -25,15 +25,61 @@ async function loadStaticData() {
   ]);
   DEPARTMENTS = await dRes.json();
   TEMPLATES = await tRes.json();
-  // 분야 셀렉트 채우기
-  const fields = [...new Set(DEPARTMENTS.map(d => d.field))].sort();
+  updateFieldOptions();
+  updateSearchList();
+}
+
+function getYearTypeFiltered() {
+  const year = document.getElementById("fYear").value;
+  const type = document.getElementById("fType").value;
+  return DEPARTMENTS.filter(d => {
+    if (year && String(d.year) !== year) return false;
+    if (type && d.type !== type) return false;
+    return true;
+  });
+}
+
+function updateFieldOptions() {
   const sel = document.getElementById("fField");
+  const prev = sel.value;
+  const scoped = getYearTypeFiltered();
+  const fields = [...new Set(scoped.map(d => d.field))].sort();
+  sel.innerHTML = '<option value="">\ubd84\uc57c \uc804\uccb4</option>';
   fields.forEach(f => {
     const opt = document.createElement("option");
     opt.value = f; opt.textContent = f;
     sel.appendChild(opt);
   });
+  sel.value = fields.includes(prev) ? prev : "";
 }
+
+function updateSearchList() {
+  const field = document.getElementById("fField").value;
+  const scoped = getYearTypeFiltered().filter(d => !field || d.field === field);
+  const dl = document.getElementById("deptSearchList");
+  dl.innerHTML = "";
+  const seen = new Set();
+  scoped.forEach(d => {
+    const key = `${d.college}-${d.campus}-${d.dept}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const opt = document.createElement("option");
+    opt.value = key;
+    dl.appendChild(opt);
+  });
+}
+
+document.getElementById("fYear").addEventListener("change", () => {
+  updateFieldOptions();
+  updateSearchList();
+});
+document.getElementById("fType").addEventListener("change", () => {
+  updateFieldOptions();
+  updateSearchList();
+});
+document.getElementById("fField").addEventListener("change", () => {
+  updateSearchList();
+});
 
 // ---------------------------------------------------------------
 // 로그인 (users 컬렉션 기반 간단 인증 + Firebase 익명 인증으로 DB 접근권한 확보)
@@ -499,12 +545,15 @@ loadStaticData().catch(err => {
 
 (function renderVersion() {
   const label = `${APP_VERSION} (${BUILD_DATE})`;
+  const year = BUILD_DATE.slice(0, 4);
   const verBadge = document.getElementById("verBadge");
   const loginVer = document.getElementById("loginVersion");
   const footerVer = document.getElementById("footerVersion");
+  const footerCopy = document.getElementById("footerCopy");
   if (verBadge) verBadge.textContent = label;
   if (loginVer) loginVer.textContent = label;
-  if (footerVer) footerVer.textContent = `한국폴리텍대학 신설·개편학과 평가 시스템 ${label}`;
+  if (footerVer) footerVer.textContent = `개발버전 ${APP_VERSION}`;
+  if (footerCopy) footerCopy.textContent = `© ${year} 학교법인 한국폴리텍대학. All rights reserved.`;
 })();
 
 onAuthStateChanged(auth, (user) => {

@@ -40,6 +40,10 @@
   #menuEntry .toolbar select, #menuEntry .toolbar input[type=text]{
     padding:9px 12px;border:1px solid var(--c-border-strong);border-radius:var(--radius-sm);font-size:13.5px;background:#fff;}
   #menuEntry .toolbar input[type=text]{flex:1;min-width:240px;}
+  .brand-footer{position:fixed;right:18px;bottom:12px;text-align:right;z-index:50;line-height:1.5;}
+  .brand-footer .org{font-size:12.5px;font-weight:800;color:var(--c-navy-800);}
+  .brand-footer .ver{font-size:11.5px;font-weight:700;color:var(--c-blue-600);margin:1px 0;}
+  .brand-footer .copy{font-size:10.5px;color:var(--c-text-mute);}
 </style>
 </head>
 <body>
@@ -96,7 +100,8 @@
               <select id="fYear"><option value="">년도 전체</option><option value="2024">2024</option><option value="2025">2025</option></select>
               <select id="fType"><option value="">구분 전체</option><option value="신설">신설</option><option value="개편">개편</option></select>
               <select id="fField"><option value="">분야 전체</option></select>
-              <input type="text" id="fSearch" placeholder="대학-캠퍼스-학과 검색 (예: Ⅰ-성남-반도체시스템)">
+              <input type="text" id="fSearch" list="deptSearchList" placeholder="대학-캠퍼스-학과 검색 (예: Ⅰ-성남-반도체시스템)">
+              <datalist id="deptSearchList"></datalist>
               <button class="btn btn-primary btn-sm" id="btnSearchDept">조회</button>
             </div>
             <div style="overflow-x:auto;">
@@ -152,10 +157,10 @@
     </div>
   </main>
 
-  <div class="home-footer" style="justify-content:center;background:transparent;">
-    <div class="prog-info" style="border-right:none;color:var(--c-text-mute);text-align:center;padding-right:0;">
-      <b id="footerVersion"></b>
-    </div>
+  <div class="brand-footer">
+    <div class="org">학교법인 한국폴리텍대학 AI혁신부</div>
+    <div class="ver" id="footerVersion"></div>
+    <div class="copy" id="footerCopy"></div>
   </div>
 </div>
 
