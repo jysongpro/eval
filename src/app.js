@@ -1,7 +1,7 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.2.0";
-const BUILD_DATE = "2026-10-22";
+export const APP_VERSION = "v1.3.0";
+const BUILD_DATE = "2026-10-28";
 
 import {
   signInAnonymously, onAuthStateChanged
