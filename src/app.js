@@ -1,7 +1,8 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.0.1";
+export const APP_VERSION = "v1.1.0";
 const BUILD_DATE = "2026-10-22";
+
 import {
   signInAnonymously, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -17,6 +18,7 @@ let TEMPLATES = {};
 let currentUser = null;
 let currentDept = null;
 let currentForm = null; // { quant:{}, bonus:{}, status }
+let statusMapCache = {};
 
 async function loadStaticData() {
   const [dRes, tRes] = await Promise.all([
@@ -27,6 +29,8 @@ async function loadStaticData() {
   TEMPLATES = await tRes.json();
   updateFieldOptions();
   updateSearchList();
+  await refreshStatusMap();
+  renderDeptSidebar(getFilteredDepartments());
 }
 
 function getYearTypeFiltered() {
@@ -39,12 +43,22 @@ function getYearTypeFiltered() {
   });
 }
 
+function getFilteredDepartments() {
+  const field = document.getElementById("fField").value;
+  const kw = document.getElementById("fSearch").value.trim();
+  return getYearTypeFiltered().filter(d => {
+    if (field && d.field !== field) return false;
+    if (kw && !d.searchKey.includes(kw) && !(d.college + d.campus + d.dept).includes(kw)) return false;
+    return true;
+  });
+}
+
 function updateFieldOptions() {
   const sel = document.getElementById("fField");
   const prev = sel.value;
   const scoped = getYearTypeFiltered();
   const fields = [...new Set(scoped.map(d => d.field))].sort();
-  sel.innerHTML = '<option value="">\ubd84\uc57c \uc804\uccb4</option>';
+  sel.innerHTML = '<option value="">분야 전체</option>';
   fields.forEach(f => {
     const opt = document.createElement("option");
     opt.value = f; opt.textContent = f;
@@ -69,20 +83,19 @@ function updateSearchList() {
   });
 }
 
-document.getElementById("fYear").addEventListener("change", () => {
+function refreshFilters() {
   updateFieldOptions();
   updateSearchList();
-});
-document.getElementById("fType").addEventListener("change", () => {
-  updateFieldOptions();
-  updateSearchList();
-});
-document.getElementById("fField").addEventListener("change", () => {
-  updateSearchList();
-});
+  renderDeptSidebar(getFilteredDepartments());
+}
+
+document.getElementById("fYear").addEventListener("change", refreshFilters);
+document.getElementById("fType").addEventListener("change", refreshFilters);
+document.getElementById("fField").addEventListener("change", refreshFilters);
+document.getElementById("fSearch").addEventListener("input", () => renderDeptSidebar(getFilteredDepartments()));
 
 // ---------------------------------------------------------------
-// 로그인 (users 컬렉션 기반 간단 인증 + Firebase 익명 인증으로 DB 접근권한 확보)
+// 로그인
 // ---------------------------------------------------------------
 const DEFAULT_ADMIN = { id: "admin", pw: "1234", name: "관리자" };
 
@@ -123,7 +136,8 @@ document.getElementById("btnLogin").addEventListener("click", async () => {
   document.getElementById("userLabel").textContent = `${user.name} 님`;
   document.getElementById("loginScreen").style.display = "none";
   document.getElementById("appShell").style.display = "flex";
-  renderDeptTable(DEPARTMENTS);
+  await refreshStatusMap();
+  renderDeptSidebar(getFilteredDepartments());
 });
 
 document.getElementById("btnLogout").addEventListener("click", () => {
@@ -135,93 +149,67 @@ document.getElementById("btnLogout").addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------
-// 메뉴 전환
+// 메뉴 전환 (상단 1뎁스)
 // ---------------------------------------------------------------
 document.querySelectorAll("nav.tabs > .tab").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll("nav.tabs > .tab").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
-    ["menuEntry", "menuResult", "menuForm"].forEach(id => document.getElementById(id).style.display = "none");
+    ["menuEntry", "menuResult"].forEach(id => document.getElementById(id).style.display = "none");
     const target = btn.dataset.menu === "entry" ? "menuEntry" : "menuResult";
     document.getElementById(target).style.display = "block";
   });
 });
 
-document.querySelectorAll("#menuForm .tabs > .tab").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("#menuForm .tabs > .tab").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    const quant = document.getElementById("tabQuant");
-    const bonus = document.getElementById("tabBonus");
-    if (btn.dataset.tab === "quant") { quant.style.display = "block"; bonus.style.display = "none"; }
-    else { quant.style.display = "none"; bonus.style.display = "block"; }
-  });
-});
-
-document.getElementById("btnBackToList").addEventListener("click", () => {
-  document.getElementById("menuForm").style.display = "none";
-  document.getElementById("menuEntry").style.display = "block";
+// 평가입력 폼 내부 탭 (정량평가 / 가점·감점)
+document.querySelector(".entry-form-pane").addEventListener("click", (e) => {
+  const btn = e.target.closest(".tabs > .tab");
+  if (!btn || !btn.closest(".entry-form-pane")) return;
+  document.querySelectorAll(".entry-form-pane .tabs > .tab").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const quant = document.getElementById("tabQuant");
+  const bonus = document.getElementById("tabBonus");
+  if (btn.dataset.tab === "quant") { quant.style.display = "block"; bonus.style.display = "none"; }
+  else { quant.style.display = "none"; bonus.style.display = "block"; }
 });
 
 // ---------------------------------------------------------------
-// 학과 검색/목록
+// 학과 사이드바 목록
 // ---------------------------------------------------------------
-document.getElementById("btnSearchDept").addEventListener("click", doSearch);
-document.getElementById("fSearch").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
-
-async function doSearch() {
-  const year = document.getElementById("fYear").value;
-  const type = document.getElementById("fType").value;
-  const field = document.getElementById("fField").value;
-  const kw = document.getElementById("fSearch").value.trim();
-
-  let list = DEPARTMENTS.filter(d => {
-    if (year && String(d.year) !== year) return false;
-    if (type && d.type !== type) return false;
-    if (field && d.field !== field) return false;
-    if (kw && !d.searchKey.includes(kw) && !(d.college + d.campus + d.dept).includes(kw)) return false;
-    return true;
-  });
-  await renderDeptTable(list);
-}
-
-async function getStatusMap(codes) {
+async function refreshStatusMap() {
   const map = {};
   try {
     const snap = await getDocs(collection(db, "evaluations"));
-    snap.forEach(s => { if (codes.includes(s.id)) map[s.id] = s.data().status || "draft"; });
+    snap.forEach(s => { map[s.id] = s.data().status || "draft"; });
   } catch (e) {
     console.warn("평가 상태 조회 실패(오프라인 가능):", e);
   }
-  return map;
+  statusMapCache = map;
 }
 
-async function renderDeptTable(list) {
-  const tbody = document.getElementById("deptTableBody");
-  tbody.innerHTML = `<tr><td colspan="9" class="muted">조회 중...</td></tr>`;
-  const statusMap = await getStatusMap(list.map(d => d.code));
-  tbody.innerHTML = "";
+function statusBadge(code) {
+  const st = statusMapCache[code] || "none";
+  if (st === "done") return '<span class="chip chip-ok">완료</span>';
+  if (st === "draft") return '<span class="chip" style="background:var(--c-warn-bg);color:var(--c-warn);">작성중</span>';
+  return '<span class="chip" style="background:#eceff3;color:#888;">미입력</span>';
+}
+
+function renderDeptSidebar(list) {
+  const box = document.getElementById("deptList");
+  box.innerHTML = "";
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="muted">조회된 학과가 없습니다.</td></tr>`;
+    box.innerHTML = `<div class="muted" style="padding:16px;text-align:center;">조회된 학과가 없습니다.</div>`;
     return;
   }
   list.forEach(d => {
-    const st = statusMap[d.code] || "none";
-    const badge = st === "done"
-      ? '<span class="chip chip-ok">완료</span>'
-      : st === "draft"
-        ? '<span class="chip" style="background:var(--c-warn-bg);color:var(--c-warn);">작성중</span>'
-        : '<span class="chip" style="background:#eceff3;color:#888;">미입력</span>';
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${d.code}</td><td>${d.year}</td><td>${d.type}</td><td>${d.field}</td>
-      <td>${d.college}</td><td>${d.campus}</td><td>${d.dept}</td>
-      <td>${badge}</td>
-      <td><button class="btn btn-soft btn-sm btn-open" data-code="${d.code}">입력</button></td>`;
-    tbody.appendChild(tr);
-  });
-  tbody.querySelectorAll(".btn-open").forEach(btn => {
-    btn.addEventListener("click", () => openForm(btn.dataset.code));
+    const el = document.createElement("div");
+    el.className = "dept-item" + (currentDept && currentDept.code === d.code ? " active" : "");
+    el.dataset.code = d.code;
+    el.innerHTML = `
+      <div class="di-top"><span>${d.dept}</span>${statusBadge(d.code)}</div>
+      <div class="di-sub">${d.year}년 ${d.type} · ${d.field} · ${d.college}-${d.campus}</div>`;
+    el.addEventListener("click", () => openForm(d.code));
+    box.appendChild(el);
   });
 }
 
@@ -254,8 +242,13 @@ async function openForm(code) {
   updateStatusLabel();
   recomputeAll();
 
-  document.getElementById("menuEntry").style.display = "none";
-  document.getElementById("menuForm").style.display = "block";
+  document.getElementById("formEmptyHint").style.display = "none";
+  document.getElementById("formBody").style.display = "block";
+
+  // 사이드바 선택 상태 갱신
+  document.querySelectorAll(".dept-item").forEach(el => {
+    el.classList.toggle("active", el.dataset.code === code);
+  });
 }
 
 function buildFormState(template, saved) {
@@ -277,7 +270,11 @@ function updateStatusLabel() {
   }
 }
 
-// --- 정량평가 탭(핵심성과 + 교원운영) ---
+function remarkCell(id, savedRemark) {
+  return `<td><input type="text" maxlength="50" class="remark-in" data-id="${id}" data-field="remark" placeholder="비고" value="${savedRemark ? String(savedRemark).replace(/"/g, '&quot;') : ''}"></td>`;
+}
+
+// --- 정량평가 탭(핵심성과 + 교원운영 + 장비운영 + 홍보/산학) ---
 function renderQuantTab(template) {
   const root = document.getElementById("tabQuant");
   root.innerHTML = "";
@@ -288,7 +285,7 @@ function renderQuantTab(template) {
     box.innerHTML = `
       <div class="eval-group-header"><span>1. 핵심성과 - ${group.label}</span><span>배점 ${group.categoryMax}점</span></div>
       <table class="eval-table">
-        <thead><tr><th>평가대상</th><th>평가방법</th><th>배점</th><th>실적(분자)</th><th>실적(분모)</th><th>%</th><th>점수</th></tr></thead>
+        <thead><tr><th>평가대상</th><th>평가방법</th><th>배점</th><th>실적(분자)</th><th>실적(분모)</th><th>%</th><th>점수</th><th>비고</th></tr></thead>
         <tbody>
         ${group.targets.map((t, ti) => {
           const id = `core_${gi}_${ti}`;
@@ -296,7 +293,7 @@ function renderQuantTab(template) {
             return `<tr class="excluded-row">
               <td class="label-cell">${t.target}</td>
               <td class="method-cell">평가 제외 항목</td>
-              <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+              <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
             </tr>`;
           }
           const method = t.target === "학위과정" ? group.methodDegree : group.methodVoc;
@@ -308,6 +305,7 @@ function renderQuantTab(template) {
             <td><input type="number" min="0" step="1" class="num-in" data-id="${id}" data-field="den" placeholder="분모"></td>
             <td class="pct-cell" data-id="${id}">-</td>
             <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${t.subMax}"></td>
+            ${remarkCell(id)}
           </tr>`;
         }).join("")}
         </tbody>
@@ -320,7 +318,7 @@ function renderQuantTab(template) {
   teacherBox.innerHTML = `
     <div class="eval-group-header"><span>2. 교원운영</span><span>배점 ${template.teacher.reduce((s, i) => s + (i.max || 0), 0)}점</span></div>
     <table class="eval-table">
-      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>배점</th><th>점수</th></tr></thead>
+      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>배점</th><th>점수</th><th>비고</th></tr></thead>
       <tbody>
       ${template.teacher.map((item, idx) => {
         const id = `teacher_${idx}`;
@@ -329,6 +327,7 @@ function renderQuantTab(template) {
           <td class="method-cell">${item.method || ""}</td>
           <td>${item.max ?? "-"}</td>
           <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${item.max || 0}"></td>
+          ${remarkCell(id)}
         </tr>`;
       }).join("")}
       </tbody>
@@ -340,7 +339,7 @@ function renderQuantTab(template) {
   equipBox.innerHTML = `
     <div class="eval-group-header"><span>3. 장비운영</span><span>배점 ${template.equipment.reduce((s, i) => s + (Number(i.max) || 0), 0)}점</span></div>
     <table class="eval-table">
-      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>배점</th><th>점수</th></tr></thead>
+      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>배점</th><th>점수</th><th>비고</th></tr></thead>
       <tbody>
       ${template.equipment.map((item, idx) => {
         const id = `equip_${idx}`;
@@ -349,6 +348,7 @@ function renderQuantTab(template) {
           <td class="method-cell">${item.method || ""}</td>
           <td>${item.max ?? "-"}</td>
           <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${Number(item.max) || 0}"></td>
+          ${remarkCell(id)}
         </tr>`;
       }).join("")}
       </tbody>
@@ -360,7 +360,7 @@ function renderQuantTab(template) {
   promoBox.innerHTML = `
     <div class="eval-group-header"><span>4. 홍보/산학 실적</span><span>배점 ${template.promotion.reduce((s, i) => s + (Number(i.max) || 0), 0)}점</span></div>
     <table class="eval-table">
-      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>배점</th><th>점수</th></tr></thead>
+      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>배점</th><th>점수</th><th>비고</th></tr></thead>
       <tbody>
       ${template.promotion.map((item, idx) => {
         const id = `promo_${idx}`;
@@ -369,6 +369,7 @@ function renderQuantTab(template) {
           <td class="method-cell">${item.method || ""}</td>
           <td>${item.max ?? "-"}</td>
           <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${Number(item.max) || 0}"></td>
+          ${remarkCell(id)}
         </tr>`;
       }).join("")}
       </tbody>
@@ -377,6 +378,13 @@ function renderQuantTab(template) {
 
   root.querySelectorAll(".num-in").forEach(inp => {
     inp.addEventListener("input", onQuantInput);
+  });
+  root.querySelectorAll(".remark-in").forEach(inp => {
+    inp.addEventListener("input", (e) => {
+      const id = e.target.dataset.id;
+      if (!currentForm.quant[id]) currentForm.quant[id] = {};
+      currentForm.quant[id].remark = e.target.value;
+    });
   });
 }
 
@@ -415,7 +423,7 @@ function renderBonusTab(template) {
   bonusBox.innerHTML = `
     <div class="eval-group-header"><span>5. 가점 항목</span><span>가점</span></div>
     <table class="eval-table">
-      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>최대</th><th>점수</th></tr></thead>
+      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>최대</th><th>점수</th><th>비고</th></tr></thead>
       <tbody>
       ${template.bonus.map((item, idx) => {
         const id = `bonus_${idx}`;
@@ -425,6 +433,7 @@ function renderBonusTab(template) {
           <td class="method-cell">${(item.method || "").replace(/\n/g, "<br>")}</td>
           <td>${item.max ?? "-"}</td>
           <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${maxAbs}"></td>
+          ${remarkCell(id)}
         </tr>`;
       }).join("")}
       </tbody>
@@ -436,7 +445,7 @@ function renderBonusTab(template) {
   penaltyBox.innerHTML = `
     <div class="eval-group-header"><span>6. 감점 항목</span><span>감점</span></div>
     <table class="eval-table">
-      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>최대</th><th>점수(음수 입력)</th></tr></thead>
+      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>최대</th><th>점수(음수 입력)</th><th>비고</th></tr></thead>
       <tbody>
       ${template.penalty.map((item, idx) => {
         const id = `penalty_${idx}`;
@@ -446,6 +455,7 @@ function renderBonusTab(template) {
           <td class="method-cell">${(item.method || "").replace(/\n/g, "<br>")}</td>
           <td>${item.max ?? "-"}</td>
           <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${maxAbs}"></td>
+          ${remarkCell(id)}
         </tr>`;
       }).join("")}
       </tbody>
@@ -458,6 +468,13 @@ function renderBonusTab(template) {
       if (!currentForm.bonus[id]) currentForm.bonus[id] = {};
       currentForm.bonus[id].score = e.target.value === "" ? null : Number(e.target.value);
       recomputeAll();
+    });
+  });
+  root.querySelectorAll(".remark-in").forEach(inp => {
+    inp.addEventListener("input", (e) => {
+      const id = e.target.dataset.id;
+      if (!currentForm.bonus[id]) currentForm.bonus[id] = {};
+      currentForm.bonus[id].remark = e.target.value;
     });
   });
 }
@@ -480,11 +497,19 @@ function applySavedValues() {
       const el = document.querySelector(`.score-in[data-id="${id}"]`);
       if (el) el.value = row.score;
     }
+    if (row.remark != null) {
+      const el = document.querySelector(`.remark-in[data-id="${id}"]`);
+      if (el) el.value = row.remark;
+    }
   });
   Object.entries(currentForm.bonus).forEach(([id, row]) => {
     if (row.score != null) {
       const el = document.querySelector(`.score-in[data-id="${id}"]`);
       if (el) el.value = row.score;
+    }
+    if (row.remark != null) {
+      const el = document.querySelector(`.remark-in[data-id="${id}"]`);
+      if (el) el.value = row.remark;
     }
   });
 }
@@ -521,6 +546,8 @@ async function saveEvaluation(status) {
   try {
     await setDoc(doc(db, "evaluations", currentDept.code), payload, { merge: true });
     updateStatusLabel();
+    statusMapCache[currentDept.code] = status;
+    renderDeptSidebar(getFilteredDepartments());
     alert(status === "done" ? "최종완료 처리되었습니다." : "저장되었습니다.");
   } catch (e) {
     console.error(e);
@@ -540,18 +567,14 @@ document.getElementById("btnFinalize").addEventListener("click", () => {
 // ---------------------------------------------------------------
 loadStaticData().catch(err => {
   console.error("정적 데이터 로드 실패:", err);
-  alert("데이터 로드에 실패했습니다. assets 폴더를 확인해주세요.");
+  alert("데이터 로드에 실패했습니다. data 폴더를 확인해주세요.");
 });
 
 (function renderVersion() {
   const label = `${APP_VERSION} (${BUILD_DATE})`;
   const year = BUILD_DATE.slice(0, 4);
-  const verBadge = document.getElementById("verBadge");
-  const loginVer = document.getElementById("loginVersion");
   const footerVer = document.getElementById("footerVersion");
   const footerCopy = document.getElementById("footerCopy");
-  if (verBadge) verBadge.textContent = label;
-  if (loginVer) loginVer.textContent = label;
   if (footerVer) footerVer.textContent = `개발버전 ${APP_VERSION}`;
   if (footerCopy) footerCopy.textContent = `© ${year} 학교법인 한국폴리텍대학. All rights reserved.`;
 })();

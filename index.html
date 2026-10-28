@@ -44,6 +44,22 @@
   .brand-footer .org{font-size:12.5px;font-weight:800;color:var(--c-navy-800);}
   .brand-footer .ver{font-size:11.5px;font-weight:700;color:var(--c-blue-600);margin:1px 0;}
   .brand-footer .copy{font-size:10.5px;color:var(--c-text-mute);}
+  .entry-layout{display:flex;gap:16px;align-items:flex-start;}
+  .dept-sidebar{width:330px;flex:none;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;}
+  .dept-sidebar .sb-filters{padding:12px;border-bottom:1px solid var(--c-border);display:flex;flex-direction:column;gap:8px;background:var(--c-bg-soft);}
+  .dept-sidebar .sb-filters select, .dept-sidebar .sb-filters input[type=text]{
+    width:100%;padding:8px 10px;border:1px solid var(--c-border-strong);border-radius:var(--radius-sm);font-size:13px;background:#fff;}
+  .dept-sidebar .sb-list{max-height:72vh;overflow-y:auto;}
+  .dept-item{padding:10px 14px;border-bottom:1px solid var(--c-border);cursor:pointer;font-size:12.8px;}
+  .dept-item:hover{background:var(--c-bg-soft);}
+  .dept-item.active{background:var(--c-blue-600);color:#fff;}
+  .dept-item .di-top{display:flex;justify-content:space-between;gap:6px;font-weight:700;margin-bottom:2px;}
+  .dept-item .di-sub{color:var(--c-text-mute);font-size:11.8px;}
+  .dept-item.active .di-sub{color:#dbe9fb;}
+  .dept-item .chip{font-size:10.5px;padding:2px 8px;}
+  .entry-form-pane{flex:1;min-width:0;}
+  .entry-form-pane .empty-hint{text-align:center;color:var(--c-text-mute);padding:80px 20px;background:var(--c-surface);border:1px dashed var(--c-border-strong);border-radius:var(--radius);}
+  .eval-table input.remark-in{width:100%;min-width:140px;text-align:left;}
 </style>
 </head>
 <body>
@@ -94,55 +110,50 @@
   <main class="main">
     <div class="container">
 
-      <!-- 평가데이터 입력 -->
+      <!-- 평가데이터 입력: 좌측 학과리스트 + 우측 입력폼 -->
       <section id="menuEntry" class="menu-panel">
-        <div class="panel">
-          <div class="panel-head"><h2>평가대상 학과 조회</h2></div>
-          <div class="panel-body">
-            <div class="toolbar" style="margin-bottom:16px;">
+        <div class="entry-layout">
+          <aside class="dept-sidebar">
+            <div class="sb-filters">
               <select id="fYear"><option value="">년도 전체</option><option value="2024">2024</option><option value="2025">2025</option></select>
               <select id="fType"><option value="">구분 전체</option><option value="신설">신설</option><option value="개편">개편</option></select>
               <select id="fField"><option value="">분야 전체</option></select>
-              <input type="text" id="fSearch" list="deptSearchList" placeholder="대학-캠퍼스-학과 검색 (예: Ⅰ-성남-반도체시스템)">
+              <input type="text" id="fSearch" list="deptSearchList" placeholder="대학-캠퍼스-학과 검색">
               <datalist id="deptSearchList"></datalist>
-              <button class="btn btn-primary btn-sm" id="btnSearchDept">조회</button>
             </div>
-            <div style="overflow-x:auto;">
-              <table class="vtable" id="deptTable">
-                <thead><tr><th>코드</th><th>년도</th><th>구분</th><th>분야</th><th>대학</th><th>캠퍼스</th><th>학과명</th><th>상태</th><th></th></tr></thead>
-                <tbody id="deptTableBody"></tbody>
-              </table>
+            <div class="sb-list" id="deptList"></div>
+          </aside>
+
+          <div class="entry-form-pane" id="formPane">
+            <div class="empty-hint" id="formEmptyHint">왼쪽 목록에서 평가할 학과를 선택하세요.</div>
+
+            <div id="formBody" style="display:none;">
+              <div class="toolbar" style="margin-bottom:14px;">
+                <h2 id="formDeptTitle" style="margin:0;font-size:17px;color:var(--c-navy-800);"></h2>
+              </div>
+
+              <div class="tabs">
+                <button class="tab active" data-tab="quant">정량평가</button>
+                <button class="tab" data-tab="bonus">가점/감점</button>
+              </div>
+
+              <div class="score-summary">
+                <div class="stat"><div class="s-label">정량평가 합계</div><div class="s-val" id="sumQuant">0</div></div>
+                <div class="stat"><div class="s-label">가점/감점 합계</div><div class="s-val" id="sumBonus">0</div></div>
+                <div class="stat total"><div class="s-label">최종점수</div><div class="s-val" id="sumTotal">0</div></div>
+              </div>
+
+              <div id="tabQuant"></div>
+              <div id="tabBonus" style="display:none;"></div>
+
+              <div class="form-footer">
+                <span id="statusLabel" class="status-pill draft"></span>
+                <div class="toolbar">
+                  <button class="btn btn-soft" id="btnSave">저장</button>
+                  <button class="btn btn-primary" id="btnFinalize">최종완료</button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 평가입력 폼 -->
-      <section id="menuForm" class="menu-panel" style="display:none;">
-        <div class="toolbar" style="margin-bottom:14px;">
-          <button class="btn btn-ghost btn-sm" id="btnBackToList">&larr; 목록으로</button>
-          <h2 id="formDeptTitle" style="margin:0;font-size:17px;color:var(--c-navy-800);"></h2>
-        </div>
-
-        <div class="tabs">
-          <button class="tab active" data-tab="quant">정량평가</button>
-          <button class="tab" data-tab="bonus">가점/감점</button>
-        </div>
-
-        <div class="score-summary">
-          <div class="stat"><div class="s-label">정량평가 합계</div><div class="s-val" id="sumQuant">0</div></div>
-          <div class="stat"><div class="s-label">가점/감점 합계</div><div class="s-val" id="sumBonus">0</div></div>
-          <div class="stat total"><div class="s-label">최종점수</div><div class="s-val" id="sumTotal">0</div></div>
-        </div>
-
-        <div id="tabQuant"></div>
-        <div id="tabBonus" style="display:none;"></div>
-
-        <div class="form-footer">
-          <span id="statusLabel" class="status-pill draft"></span>
-          <div class="toolbar">
-            <button class="btn btn-soft" id="btnSave">저장</button>
-            <button class="btn btn-primary" id="btnFinalize">최종완료</button>
           </div>
         </div>
       </section>
