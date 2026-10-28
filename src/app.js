@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.1.0";
+export const APP_VERSION = "v1.2.0";
 const BUILD_DATE = "2026-10-22";
 
 import {
@@ -270,8 +270,8 @@ function updateStatusLabel() {
   }
 }
 
-function remarkCell(id, savedRemark) {
-  return `<td><input type="text" maxlength="50" class="remark-in" data-id="${id}" data-field="remark" placeholder="비고" value="${savedRemark ? String(savedRemark).replace(/"/g, '&quot;') : ''}"></td>`;
+function remarkCell(id, savedRemark, maxLen = 50) {
+  return `<td><input type="text" maxlength="${maxLen}" class="remark-in" data-id="${id}" data-field="remark" placeholder="비고" value="${savedRemark ? String(savedRemark).replace(/"/g, '&quot;') : ''}"></td>`;
 }
 
 // --- 정량평가 탭(핵심성과 + 교원운영 + 장비운영 + 홍보/산학) ---
@@ -433,7 +433,7 @@ function renderBonusTab(template) {
           <td class="method-cell">${(item.method || "").replace(/\n/g, "<br>")}</td>
           <td>${item.max ?? "-"}</td>
           <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${maxAbs}"></td>
-          ${remarkCell(id)}
+          ${remarkCell(id, null, 200)}
         </tr>`;
       }).join("")}
       </tbody>
@@ -455,7 +455,7 @@ function renderBonusTab(template) {
           <td class="method-cell">${(item.method || "").replace(/\n/g, "<br>")}</td>
           <td>${item.max ?? "-"}</td>
           <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${maxAbs}"></td>
-          ${remarkCell(id)}
+          ${remarkCell(id, null, 200)}
         </tr>`;
       }).join("")}
       </tbody>
