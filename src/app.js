@@ -1,7 +1,7 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.3.0";
-const BUILD_DATE = "2026-10-28";
+export const APP_VERSION = "v1.4.0";
+const BUILD_DATE = "2026-10-22";
 
 import {
   signInAnonymously, onAuthStateChanged
@@ -399,8 +399,8 @@ function renderQuantTab(template) {
 }
 
 // 핵심성과 그룹(입학충원율/재학생비율/취업률)의 산출점수 계산:
-// 포함된 세부항목 중 점수가 입력된 항목만 대상으로,
-// 각 항목의 달성률(점수/배점)의 평균을 가중치로 삼아 그룹 배점에 곱한다.
+// 분모(실적 분모)가 0이거나 미입력인 평가대상은 제외하고, 나머지 포함 항목들의
+// 달성률(점수/배점(항목))을 평균 내어 그 평균을 그룹 전체 배점에 곱한다.
 function computeCoreGroupScore(gi) {
   const template = currentTemplate;
   if (!template) return null;
@@ -411,9 +411,11 @@ function computeCoreGroupScore(gi) {
     if (!t.included) return;
     const id = `core_${gi}_${ti}`;
     const row = currentForm.quant[id];
-    if (row && row.score != null && row.score !== "" && Number(t.subMax) > 0) {
-      ratios.push(Number(row.score) / Number(t.subMax));
-    }
+    if (!row) return;
+    // 분모(매출실적 등 실적의 분모)가 0이거나 없는 평가대상은 제외
+    if (row.den == null || Number(row.den) === 0) return;
+    if (row.score == null || row.score === "" || !(Number(t.subMax) > 0)) return;
+    ratios.push(Number(row.score) / Number(t.subMax));
   });
   if (ratios.length === 0) return null;
   const avgRatio = ratios.reduce((s, r) => s + r, 0) / ratios.length;
@@ -452,9 +454,12 @@ function onQuantInput(e) {
       currentForm.quant[id].score = Number(score.toFixed(2));
     } else {
       if (pctCell) pctCell.textContent = "-";
+      currentForm.quant[id].score = null;
+      if (maxInput) maxInput.value = "";
     }
   }
-  const groupKey = e.target.dataset.group;
+  // 분자/분모 입력으로 점수가 간접 바뀜 경우에도 해당 핵심성과 그룹의 산출점수를 다시 계산한다.
+  const groupKey = e.target.dataset.group || (id.startsWith("core_") ? `core_${id.split("_")[1]}` : null);
   if (groupKey && groupKey.startsWith("core_")) {
     updateCoreGroupScoreCell(Number(groupKey.slice(5)));
   }
