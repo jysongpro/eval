@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.5.0";
+export const APP_VERSION = "v1.6.1";
 const BUILD_DATE = "2026-10-22";
 
 import {
@@ -376,6 +376,129 @@ function updateCoreGroupScoreCell(gi) {
 function updateAllCoreGroupScores() {
   if (!currentTemplate) return;
   currentTemplate.core.forEach((_, gi) => updateCoreGroupScoreCell(gi));
+}
+
+// 교원운영 / 장비운영 / 홍보산학 세부항목별 실적입력 → 점수 자동계산 메타데이터
+const TEACHER_META = [
+  {
+    inputs: [
+      { key: "trained", label: "연수시간이수 교원수" },
+      { key: "total", label: "학과소속 교원수" }
+    ],
+    compute: (max, v) => {
+      if (!v.total) return null;
+      const pct = (Number(v.trained) || 0) / Number(v.total) * 100;
+      return pct >= 80 ? 5 : (pct >= 60 ? 3 : 1);
+    }
+  },
+  {
+    inputs: [
+      { key: "sum", label: "교원연수 총합" },
+      { key: "total2", label: "학과소속 교원수" }
+    ],
+    compute: (max, v) => {
+      if (!v.total2) return null;
+      const avg = (Number(v.sum) || 0) / Number(v.total2);
+      return avg >= 40 ? 5 : (avg >= 30 ? 3 : 1);
+    }
+  }
+];
+
+const EQUIP_META = [
+  {
+    inputs: [
+      { key: "used", label: "활용시간" },
+      { key: "planned", label: "고가장비활용계획시간" }
+    ],
+    compute: (max, v) => {
+      if (!v.planned) return null;
+      const pct = (Number(v.used) || 0) / Number(v.planned) * 100;
+      const m = Number(max) || 0;
+      return pct >= 100 ? m : Math.round((pct / 100 * m) * 100) / 100;
+    }
+  },
+  {
+    inputs: [ { key: "count", label: "지적건수" } ],
+    compute: (max, v) => {
+      if (v.count == null || v.count === "") return null;
+      const m = Number(max) || 0;
+      return Math.max(0, Math.round((m - Number(v.count) * 0.3) * 100) / 100);
+    }
+  }
+];
+
+const PROMO_META = [
+  {
+    inputs: [ { key: "count", label: "홍보건수" } ],
+    compute: (max, v) => {
+      if (v.count == null || v.count === "") return null;
+      return Math.min(Number(v.count) * 0.3, Number(max) || 0);
+    }
+  },
+  {
+    inputs: [ { key: "count", label: "체결및실적건수" } ],
+    compute: (max, v, item) => {
+      if (v.count == null || v.count === "") return null;
+      return Math.min(Number(v.count) * (Number(item && item.coef) || 2), Number(max) || 0);
+    }
+  }
+];
+
+const SECTION_META = { teacher: TEACHER_META, equip: EQUIP_META, promo: PROMO_META };
+const SECTION_TEMPLATE_KEY = { teacher: "teacher", equip: "equipment", promo: "promotion" };
+
+function renderComputedSection(items, metaArr, prefix, groupTitle) {
+  const groupMax = items.reduce((s, i) => s + (Number(i.max) || 0), 0);
+  const maxInputCols = Math.max(...metaArr.map(m => m.inputs.length), 1);
+  const box = document.createElement("div");
+  box.className = "eval-group";
+  const inputHeaders = Array.from({ length: maxInputCols }, (_, i) => `<th>실적입력${maxInputCols > 1 ? (i + 1) : ""}</th>`).join("");
+  box.innerHTML = `
+    <div class="eval-group-header"><span>${groupTitle}</span><span>배점 ${groupMax}점</span></div>
+    <table class="eval-table">
+      <thead><tr><th>세부 평가항목</th><th>평가방법</th>${inputHeaders}<th>배점</th><th>점수</th><th>비고</th></tr></thead>
+      <tbody>
+      ${items.map((item, idx) => {
+        const id = `${prefix}_${idx}`;
+        const meta = metaArr[idx] || { inputs: [] };
+        const inputCells = Array.from({ length: maxInputCols }, (_, ci) => {
+          const inp = meta.inputs[ci];
+          if (!inp) return `<td>-</td>`;
+          return `<td><input type="number" step="0.01" class="num-in sub-in" data-id="${id}" data-key="${inp.key}" placeholder="${inp.label}" title="${inp.label}"></td>`;
+        }).join("");
+        return `<tr>
+          <td class="label-cell">${(item.label || "").replace(/\n/g, "<br>")}</td>
+          <td class="method-cell">${(item.method || "").replace(/\n/g, "<br>")}</td>
+          ${inputCells}
+          <td>${item.max ?? "-"}</td>
+          <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${Number(item.max) || 0}" readonly></td>
+          ${remarkCell(id)}
+        </tr>`;
+      }).join("")}
+      </tbody>
+    </table>`;
+  return box;
+}
+
+function onSubInput(e) {
+  const id = e.target.dataset.id;
+  const key = e.target.dataset.key;
+  const val = e.target.value === "" ? null : Number(e.target.value);
+  const prefix = id.split("_")[0];
+  const idx = Number(id.split("_")[1]);
+  const metaArr = SECTION_META[prefix];
+  const tplKey = SECTION_TEMPLATE_KEY[prefix];
+  if (!metaArr || !tplKey || !currentTemplate) return;
+  const item = currentTemplate[tplKey][idx];
+  const meta = metaArr[idx];
+  if (!currentForm.quant[id]) currentForm.quant[id] = {};
+  if (!currentForm.quant[id].in) currentForm.quant[id].in = {};
+  currentForm.quant[id].in[key] = val;
+  const score = meta.compute(item.max, currentForm.quant[id].in, item);
+  currentForm.quant[id].score = score;
+  const scoreEl = document.querySelector(`.score-in[data-id="${id}"]`);
+  if (scoreEl) scoreEl.value = score == null ? "" : score;
+  recomputeAll();
 }
 
 function onQuantInput(e) {
