@@ -18,6 +18,7 @@ let TEMPLATES = {};
 let currentUser = null;
 let currentDept = null;
 let currentForm = null; // { quant:{}, bonus:{}, status }
+let currentTemplate = null;
 let statusMapCache = {};
 
 async function loadStaticData() {
@@ -223,6 +224,7 @@ async function openForm(code) {
   const key = `${dept.year}_${dept.type}`;
   const template = TEMPLATES[key];
   if (!template) { alert("해당 년도/구분의 평가표 템플릿이 없습니다: " + key); return; }
+  currentTemplate = template;
 
   document.getElementById("formDeptTitle").textContent =
     `${dept.code} · ${dept.college}-${dept.campus}-${dept.dept} (${dept.year}년 ${dept.type})`;
@@ -282,10 +284,12 @@ function renderQuantTab(template) {
   template.core.forEach((group, gi) => {
     const box = document.createElement("div");
     box.className = "eval-group";
+    const includedCount = group.targets.filter(t => t.included).length;
+    let includedSeen = 0;
     box.innerHTML = `
       <div class="eval-group-header"><span>1. 핵심성과 - ${group.label}</span><span>배점 ${group.categoryMax}점</span></div>
       <table class="eval-table">
-        <thead><tr><th>평가대상</th><th>평가방법</th><th>배점</th><th>실적(분자)</th><th>실적(분모)</th><th>%</th><th>점수</th><th>비고</th></tr></thead>
+        <thead><tr><th>평가대상</th><th>평가방법</th><th>배점</th><th>실적(분자)</th><th>실적(분모)</th><th>%</th><th>점수</th><th>배점(항목)</th><th>산출점수</th><th>비고</th></tr></thead>
         <tbody>
         ${group.targets.map((t, ti) => {
           const id = `core_${gi}_${ti}`;
@@ -293,10 +297,15 @@ function renderQuantTab(template) {
             return `<tr class="excluded-row">
               <td class="label-cell">${t.target}</td>
               <td class="method-cell">평가 제외 항목</td>
-              <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+              <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
             </tr>`;
           }
+          includedSeen++;
           const method = t.target === "학위과정" ? group.methodDegree : group.methodVoc;
+          const groupExtraCells = includedSeen === 1
+            ? `<td class="group-max-cell" rowspan="${includedCount}">${group.categoryMax}</td>
+               <td class="group-score-cell" data-group="core_${gi}" rowspan="${includedCount}">-</td>`
+            : "";
           return `<tr>
             <td class="label-cell">${t.target}</td>
             <td class="method-cell">${method || ""}</td>
@@ -304,7 +313,8 @@ function renderQuantTab(template) {
             <td><input type="number" min="0" step="1" class="num-in" data-id="${id}" data-field="num" placeholder="분자"></td>
             <td><input type="number" min="0" step="1" class="num-in" data-id="${id}" data-field="den" placeholder="분모"></td>
             <td class="pct-cell" data-id="${id}">-</td>
-            <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${t.subMax}"></td>
+            <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${t.subMax}" data-group="core_${gi}"></td>
+            ${groupExtraCells}
             ${remarkCell(id)}
           </tr>`;
         }).join("")}
@@ -388,6 +398,40 @@ function renderQuantTab(template) {
   });
 }
 
+// 핵심성과 그룹(입학충원율/재학생비율/취업률)의 산출점수 계산:
+// 포함된 세부항목 중 점수가 입력된 항목만 대상으로,
+// 각 항목의 달성률(점수/배점)의 평균을 가중치로 삼아 그룹 배점에 곱한다.
+function computeCoreGroupScore(gi) {
+  const template = currentTemplate;
+  if (!template) return null;
+  const group = template.core[gi];
+  if (!group) return null;
+  const ratios = [];
+  group.targets.forEach((t, ti) => {
+    if (!t.included) return;
+    const id = `core_${gi}_${ti}`;
+    const row = currentForm.quant[id];
+    if (row && row.score != null && row.score !== "" && Number(t.subMax) > 0) {
+      ratios.push(Number(row.score) / Number(t.subMax));
+    }
+  });
+  if (ratios.length === 0) return null;
+  const avgRatio = ratios.reduce((s, r) => s + r, 0) / ratios.length;
+  return avgRatio * Number(group.categoryMax || 0);
+}
+
+function updateCoreGroupScoreCell(gi) {
+  const cell = document.querySelector(`.group-score-cell[data-group="core_${gi}"]`);
+  if (!cell) return;
+  const score = computeCoreGroupScore(gi);
+  cell.textContent = score == null ? "-" : score.toFixed(2);
+}
+
+function updateAllCoreGroupScores() {
+  if (!currentTemplate) return;
+  currentTemplate.core.forEach((_, gi) => updateCoreGroupScoreCell(gi));
+}
+
 function onQuantInput(e) {
   const id = e.target.dataset.id;
   const field = e.target.dataset.field;
@@ -409,6 +453,10 @@ function onQuantInput(e) {
     } else {
       if (pctCell) pctCell.textContent = "-";
     }
+  }
+  const groupKey = e.target.dataset.group;
+  if (groupKey && groupKey.startsWith("core_")) {
+    updateCoreGroupScoreCell(Number(groupKey.slice(5)));
   }
   recomputeAll();
 }
@@ -502,6 +550,7 @@ function applySavedValues() {
       if (el) el.value = row.remark;
     }
   });
+  updateAllCoreGroupScores();
   Object.entries(currentForm.bonus).forEach(([id, row]) => {
     if (row.score != null) {
       const el = document.querySelector(`.score-in[data-id="${id}"]`);
@@ -514,8 +563,23 @@ function applySavedValues() {
   });
 }
 
+// 핵심성과(입학충원율/재학생비율/취업률)는 그룹별 산출점수를, 나머지(교원운영/장비운영/홍보산학)는 항목별 점수 합을 더한다.
+function computeQuantSum() {
+  let sum = 0;
+  if (currentTemplate) {
+    currentTemplate.core.forEach((_, gi) => {
+      sum += computeCoreGroupScore(gi) || 0;
+    });
+  }
+  Object.entries(currentForm.quant).forEach(([id, r]) => {
+    if (id.startsWith("core_")) return;
+    sum += Number(r.score) || 0;
+  });
+  return sum;
+}
+
 function recomputeAll() {
-  const quantSum = Object.values(currentForm.quant).reduce((s, r) => s + (Number(r.score) || 0), 0);
+  const quantSum = computeQuantSum();
   const bonusSum = Object.values(currentForm.bonus).reduce((s, r) => s + (Number(r.score) || 0), 0);
   document.getElementById("sumQuant").textContent = quantSum.toFixed(2);
   document.getElementById("sumBonus").textContent = bonusSum.toFixed(2);
@@ -525,7 +589,7 @@ function recomputeAll() {
 // --- 저장 / 최종완료 ---
 async function saveEvaluation(status) {
   if (!currentDept) return;
-  const quantSum = Object.values(currentForm.quant).reduce((s, r) => s + (Number(r.score) || 0), 0);
+  const quantSum = computeQuantSum();
   const bonusSum = Object.values(currentForm.bonus).reduce((s, r) => s + (Number(r.score) || 0), 0);
   currentForm.status = status;
   const payload = {
