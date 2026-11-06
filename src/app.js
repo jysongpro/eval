@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.4.0";
+export const APP_VERSION = "v1.5.0";
 const BUILD_DATE = "2026-10-22";
 
 import {
@@ -323,71 +323,15 @@ function renderQuantTab(template) {
     root.appendChild(box);
   });
 
-  const teacherBox = document.createElement("div");
-  teacherBox.className = "eval-group";
-  teacherBox.innerHTML = `
-    <div class="eval-group-header"><span>2. 교원운영</span><span>배점 ${template.teacher.reduce((s, i) => s + (i.max || 0), 0)}점</span></div>
-    <table class="eval-table">
-      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>배점</th><th>점수</th><th>비고</th></tr></thead>
-      <tbody>
-      ${template.teacher.map((item, idx) => {
-        const id = `teacher_${idx}`;
-        return `<tr>
-          <td class="label-cell">${item.label || ""}</td>
-          <td class="method-cell">${item.method || ""}</td>
-          <td>${item.max ?? "-"}</td>
-          <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${item.max || 0}"></td>
-          ${remarkCell(id)}
-        </tr>`;
-      }).join("")}
-      </tbody>
-    </table>`;
-  root.appendChild(teacherBox);
+  root.appendChild(renderComputedSection(template.teacher, TEACHER_META, "teacher", "2. 교원운영"));
+  root.appendChild(renderComputedSection(template.equipment, EQUIP_META, "equip", "3. 장비운영"));
+  root.appendChild(renderComputedSection(template.promotion, PROMO_META, "promo", "4. 홍보/산학 실적"));
 
-  const equipBox = document.createElement("div");
-  equipBox.className = "eval-group";
-  equipBox.innerHTML = `
-    <div class="eval-group-header"><span>3. 장비운영</span><span>배점 ${template.equipment.reduce((s, i) => s + (Number(i.max) || 0), 0)}점</span></div>
-    <table class="eval-table">
-      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>배점</th><th>점수</th><th>비고</th></tr></thead>
-      <tbody>
-      ${template.equipment.map((item, idx) => {
-        const id = `equip_${idx}`;
-        return `<tr>
-          <td class="label-cell">${item.label || ""}</td>
-          <td class="method-cell">${item.method || ""}</td>
-          <td>${item.max ?? "-"}</td>
-          <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${Number(item.max) || 0}"></td>
-          ${remarkCell(id)}
-        </tr>`;
-      }).join("")}
-      </tbody>
-    </table>`;
-  root.appendChild(equipBox);
-
-  const promoBox = document.createElement("div");
-  promoBox.className = "eval-group";
-  promoBox.innerHTML = `
-    <div class="eval-group-header"><span>4. 홍보/산학 실적</span><span>배점 ${template.promotion.reduce((s, i) => s + (Number(i.max) || 0), 0)}점</span></div>
-    <table class="eval-table">
-      <thead><tr><th>세부 평가항목</th><th>평가방법</th><th>배점</th><th>점수</th><th>비고</th></tr></thead>
-      <tbody>
-      ${template.promotion.map((item, idx) => {
-        const id = `promo_${idx}`;
-        return `<tr>
-          <td class="label-cell">${item.label || ""}</td>
-          <td class="method-cell">${item.method || ""}</td>
-          <td>${item.max ?? "-"}</td>
-          <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${Number(item.max) || 0}"></td>
-          ${remarkCell(id)}
-        </tr>`;
-      }).join("")}
-      </tbody>
-    </table>`;
-  root.appendChild(promoBox);
-
-  root.querySelectorAll(".num-in").forEach(inp => {
+  root.querySelectorAll(".num-in:not(.sub-in)").forEach(inp => {
     inp.addEventListener("input", onQuantInput);
+  });
+  root.querySelectorAll(".sub-in").forEach(inp => {
+    inp.addEventListener("input", onSubInput);
   });
   root.querySelectorAll(".remark-in").forEach(inp => {
     inp.addEventListener("input", (e) => {
@@ -549,6 +493,13 @@ function applySavedValues() {
     if (row.score != null) {
       const el = document.querySelector(`.score-in[data-id="${id}"]`);
       if (el) el.value = row.score;
+    }
+    if (row.in) {
+      Object.entries(row.in).forEach(([key, v]) => {
+        if (v == null) return;
+        const el = document.querySelector(`.sub-in[data-id="${id}"][data-key="${key}"]`);
+        if (el) el.value = v;
+      });
     }
     if (row.remark != null) {
       const el = document.querySelector(`.remark-in[data-id="${id}"]`);
