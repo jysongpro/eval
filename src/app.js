@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.6.2";
+export const APP_VERSION = "v1.6.3";
 const BUILD_DATE = "2026-10-22";
 
 import {
@@ -726,7 +726,9 @@ loadStaticData().catch(err => {
   const year = BUILD_DATE.slice(0, 4);
   const footerVer = document.getElementById("footerVersion");
   const footerCopy = document.getElementById("footerCopy");
+  const mainVer = document.getElementById("mainVersion");
   if (footerVer) footerVer.textContent = `개발버전 ${APP_VERSION}`;
+  if (mainVer) mainVer.textContent = `개발버전 ${APP_VERSION}`;
   if (footerCopy) footerCopy.textContent = `© ${year} 학교법인 한국폴리텍대학. All rights reserved.`;
 })();
 
