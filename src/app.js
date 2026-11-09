@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.6.6";
+export const APP_VERSION = "v1.6.7";
 const BUILD_DATE = "2026-10-22";
 
 import {
@@ -393,9 +393,9 @@ const TEACHER_META = [
     ],
     compute: (max, v) => {
       if (!v.total) return null;
-      const pct = (Number(v.trained) || 0) / Number(v.total) * 100;
+      const ratio = (Number(v.trained) || 0) / Number(v.total);
       const m = Number(max) || 0;
-      const result = pct >= 80 ? m : (pct >= 60 ? (m * 0.6) : (m * 0.2));
+      const result = ratio * m;
       return Math.round(result * 100) / 100;
     }
   },
