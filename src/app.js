@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.6.1";
+export const APP_VERSION = "v1.6.2";
 const BUILD_DATE = "2026-10-22";
 
 import {
@@ -289,7 +289,7 @@ function renderQuantTab(template) {
     box.innerHTML = `
       <div class="eval-group-header"><span>1. 핵심성과 - ${group.label}</span><span>배점 ${group.categoryMax}점</span></div>
       <table class="eval-table">
-        <thead><tr><th>평가대상</th><th>평가방법</th><th>배점</th><th>실적(분자)</th><th>실적(분모)</th><th>%</th><th>점수</th><th>배점(항목)</th><th>산출점수</th><th>비고</th></tr></thead>
+        <thead><tr><th>평가대상</th><th>평가방법</th><th>배점</th><th>${CORE_LABELS[group.label]?.num || '실적(분자)'}</th><th>${CORE_LABELS[group.label]?.den || '실적(분모)'}</th><th>%</th><th>점수</th><th>배점(항목)</th><th>산출점수</th><th>비고</th></tr></thead>
         <tbody>
         ${group.targets.map((t, ti) => {
           const id = `core_${gi}_${ti}`;
@@ -342,6 +342,12 @@ function renderQuantTab(template) {
   });
 }
 
+const CORE_LABELS = {
+  "입학충원률": { num: "최종등록자", den: "입학정원" },
+  "재학생비율": { num: "재학생수", den: "입학정원" },
+  "취업률": { num: "취업자수", den: "취업대상자수" }
+};
+
 // 핵심성과 그룹(입학충원율/재학생비율/취업률)의 산출점수 계산:
 // 분모(실적 분모)가 0이거나 미입력인 평가대상은 제외하고, 나머지 포함 항목들의
 // 달성률(점수/배점(항목))을 평균 내어 그 평균을 그룹 전체 배점에 곱한다.
@@ -382,8 +388,8 @@ function updateAllCoreGroupScores() {
 const TEACHER_META = [
   {
     inputs: [
-      { key: "trained", label: "연수시간이수 교원수" },
-      { key: "total", label: "학과소속 교원수" }
+      { key: "trained", label: "기준시간이수 교원수" },
+      { key: "total", label: "학과소속교원수" }
     ],
     compute: (max, v) => {
       if (!v.total) return null;
@@ -393,13 +399,15 @@ const TEACHER_META = [
   },
   {
     inputs: [
-      { key: "sum", label: "교원연수 총합" },
-      { key: "total2", label: "학과소속 교원수" }
+      { key: "sum", label: "교원연수시간총합" },
+      { key: "total2", label: "학과소속교원수" }
     ],
     compute: (max, v) => {
       if (!v.total2) return null;
       const avg = (Number(v.sum) || 0) / Number(v.total2);
-      return avg >= 40 ? 5 : (avg >= 30 ? 3 : 1);
+      const m = Number(max) || 0;
+      const result = avg >= 40 ? (1 * m) : (avg * m / 40);
+      return Math.round(result * 100) / 100;
     }
   }
 ];
