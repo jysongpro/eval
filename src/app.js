@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.6.8";
+export const APP_VERSION = "v1.7.0";
 const BUILD_DATE = "2026-10-22";
 
 import {
@@ -714,6 +714,291 @@ document.getElementById("btnFinalize").addEventListener("click", () => {
     saveEvaluation("done");
   }
 });
+
+
+// ---------------------------------------------------------------
+// 평가결과 조회 / 엑셀 다운로드 / 개별 출력(PDF)
+// ---------------------------------------------------------------
+let resultEvalMap = {};
+
+async function loadAllEvalDocs() {
+  const snap = await getDocs(collection(db, "evaluations"));
+  const map = {};
+  snap.forEach(d => { map[d.id] = d.data(); });
+  return map;
+}
+
+function coreScoreFromQuant(template, quant, gi) {
+  const group = template.core[gi];
+  if (!group) return null;
+  const ratios = [];
+  group.targets.forEach((t, ti) => {
+    if (!t.included) return;
+    const row = quant[`core_${gi}_${ti}`];
+    if (!row) return;
+    if (row.den == null || Number(row.den) === 0) return;
+    if (row.score == null || row.score === "" || !(Number(t.subMax) > 0)) return;
+    ratios.push(Number(row.score) / Number(t.subMax));
+  });
+  if (ratios.length === 0) return null;
+  const avg = ratios.reduce((s, r) => s + r, 0) / ratios.length;
+  return avg * Number(group.categoryMax || 0);
+}
+
+function quantSumFromData(template, quant) {
+  let sum = 0;
+  if (template) {
+    template.core.forEach((_, gi) => { sum += coreScoreFromQuant(template, quant, gi) || 0; });
+  }
+  Object.entries(quant || {}).forEach(([id, r]) => {
+    if (id.startsWith("core_")) return;
+    sum += Number(r.score) || 0;
+  });
+  return sum;
+}
+
+function bonusSumFromData(bonus) {
+  return Object.values(bonus || {}).reduce((s, r) => s + (Number(r.score) || 0), 0);
+}
+
+function statusText(st) {
+  if (st === "done") return "최종완료";
+  if (st === "draft") return "임시저장";
+  return "미입력";
+}
+
+function getResultRows() {
+  const year = document.getElementById("rYear").value;
+  const type = document.getElementById("rType").value;
+  const field = document.getElementById("rField").value;
+  const status = document.getElementById("rStatus").value;
+  const kw = document.getElementById("rSearch").value.trim();
+  return DEPARTMENTS.filter(d => {
+    if (year && String(d.year) !== year) return false;
+    if (type && d.type !== type) return false;
+    if (field && d.field !== field) return false;
+    const ev = resultEvalMap[d.code];
+    const st = ev ? (ev.status || "draft") : "none";
+    if (status && status !== st) return false;
+    if (kw && !(d.college + d.campus + d.dept).includes(kw)) return false;
+    return true;
+  }).map(d => {
+    const ev = resultEvalMap[d.code] || null;
+    const template = TEMPLATES[`${d.year}_${d.type}`];
+    const quantSum = ev ? quantSumFromData(template, ev.quant || {}) : null;
+    const bonusSum = ev ? bonusSumFromData(ev.bonus || {}) : null;
+    const total = ev ? (quantSum + bonusSum) : null;
+    return { dept: d, ev, template, quantSum, bonusSum, total };
+  });
+}
+
+function renderResultTable() {
+  const rows = getResultRows();
+  const tbody = document.getElementById("resultTbody");
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.dept.college}</td>
+      <td>${r.dept.campus}</td>
+      <td>${r.dept.dept}</td>
+      <td>${r.dept.year}</td>
+      <td>${r.dept.type}</td>
+      <td>${r.dept.field}</td>
+      <td>${r.quantSum == null ? "-" : r.quantSum.toFixed(2)}</td>
+      <td>${r.bonusSum == null ? "-" : r.bonusSum.toFixed(2)}</td>
+      <td><b>${r.total == null ? "-" : r.total.toFixed(2)}</b></td>
+      <td>${statusText(r.ev ? (r.ev.status || "draft") : "none")}</td>
+      <td><button class="btn btn-sm" data-code="${r.dept.code}">출력/PDF</button></td>
+    </tr>`).join("") || `<tr><td colspan="11" style="text-align:center;color:var(--c-text-mute);">데이터가 없습니다.</td></tr>`;
+  tbody.querySelectorAll("button[data-code]").forEach(btn => {
+    btn.addEventListener("click", () => openDeptPrint(btn.dataset.code));
+  });
+}
+
+function refreshResultFieldOptions() {
+  const sel = document.getElementById("rField");
+  const prev = sel.value;
+  const fields = [...new Set(DEPARTMENTS.map(d => d.field))].sort();
+  sel.innerHTML = '<option value="">분야 전체</option>' + fields.map(f => `<option value="${f}">${f}</option>`).join("");
+  sel.value = fields.includes(prev) ? prev : "";
+}
+
+["rYear", "rType", "rField", "rStatus"].forEach(id => {
+  document.getElementById(id).addEventListener("change", renderResultTable);
+});
+document.getElementById("rSearch").addEventListener("input", renderResultTable);
+
+document.querySelector('.tab[data-menu="result"]').addEventListener("click", async () => {
+  resultEvalMap = await loadAllEvalDocs();
+  refreshResultFieldOptions();
+  renderResultTable();
+});
+
+// ---- 엑셀 전체 다운로드 ----
+const BONUS_COUNT = 4, PENALTY_COUNT = 2;
+const CORE_GROUPS = ["입학충원률", "재학생비율", "취업률"];
+const CORE_TARGETS = ["학위과정", "하이테크", "전문기술", "중장년특화"];
+
+function buildExcelHeader() {
+  const h = ["대학", "캠퍼스", "학과", "년도", "구분", "분야", "상태"];
+  CORE_GROUPS.forEach(g => {
+    CORE_TARGETS.forEach(t => {
+      h.push(`${g}-${t}-분자`, `${g}-${t}-분모`, `${g}-${t}-점수`, `${g}-${t}-비고`);
+    });
+    h.push(`${g}-산출점수`);
+  });
+  h.push("연수참여율-기준시간이수교원수", "연수참여율-학과소속교원수", "연수참여율-점수", "연수참여율-비고");
+  h.push("전공연수실적-교원연수시간총합", "전공연수실적-학과소속교원수", "전공연수실적-점수", "전공연수실적-비고");
+  h.push("장비운영실적-활용시간", "장비운영실적-고가장비활용계획시간", "장비운영실적-점수", "장비운영실적-비고");
+  h.push("장비관리실적-지적건수", "장비관리실적-점수", "장비관리실적-비고");
+  h.push("외부홍보실적-홍보건수", "외부홍보실적-점수", "외부홍보실적-비고");
+  h.push("MOU실적-체결및실적건수", "MOU실적-점수", "MOU실적-비고");
+  for (let i = 0; i < BONUS_COUNT; i++) h.push(`가점${i + 1}-점수`, `가점${i + 1}-비고`);
+  for (let i = 0; i < PENALTY_COUNT; i++) h.push(`감점${i + 1}-점수`, `감점${i + 1}-비고`);
+  h.push("정량평가합계", "가점감점합계", "최종점수");
+  return h;
+}
+
+function buildExcelRow(dept, ev, template) {
+  const quant = (ev && ev.quant) || {};
+  const bonus = (ev && ev.bonus) || {};
+  const row = [dept.college, dept.campus, dept.dept, dept.year, dept.type, dept.field, statusText(ev ? (ev.status || "draft") : "none")];
+  template.core.forEach((group, gi) => {
+    group.targets.forEach((t, ti) => {
+      const r = quant[`core_${gi}_${ti}`] || {};
+      row.push(r.num ?? "", r.den ?? "", r.score ?? "", r.remark ?? "");
+    });
+    const gs = coreScoreFromQuant(template, quant, gi);
+    row.push(gs == null ? "" : Number(gs.toFixed(2)));
+  });
+  const sub = (id, keys) => {
+    const r = quant[id] || {};
+    const inv = r.in || {};
+    keys.forEach(k => row.push(inv[k] ?? ""));
+    row.push(r.score ?? "", r.remark ?? "");
+  };
+  sub("teacher_0", ["trained", "total"]);
+  sub("teacher_1", ["sum", "total2"]);
+  sub("equip_0", ["used", "planned"]);
+  sub("equip_1", ["count"]);
+  sub("promo_0", ["count"]);
+  sub("promo_1", ["count"]);
+  for (let i = 0; i < BONUS_COUNT; i++) { const r = bonus[`bonus_${i}`] || {}; row.push(r.score ?? "", r.remark ?? ""); }
+  for (let i = 0; i < PENALTY_COUNT; i++) { const r = bonus[`penalty_${i}`] || {}; row.push(r.score ?? "", r.remark ?? ""); }
+  const qSum = quantSumFromData(template, quant);
+  const bSum = bonusSumFromData(bonus);
+  row.push(ev ? Number(qSum.toFixed(2)) : "", ev ? Number(bSum.toFixed(2)) : "", ev ? Number((qSum + bSum).toFixed(2)) : "");
+  return row;
+}
+
+function exportAllExcel() {
+  if (!window.XLSX) { alert("엑셀 모듈을 불러오지 못했습니다. 인터넷 연결을 확인해주세요."); return; }
+  const header = buildExcelHeader();
+  const rows = [header];
+  DEPARTMENTS.forEach(d => {
+    const template = TEMPLATES[`${d.year}_${d.type}`];
+    if (!template) return;
+    const ev = resultEvalMap[d.code] || null;
+    rows.push(buildExcelRow(d, ev, template));
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "평가결과");
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  XLSX.writeFile(wb, `평가결과_전체_${today}.xlsx`);
+}
+
+document.getElementById("btnExportAllExcel").addEventListener("click", async () => {
+  if (Object.keys(resultEvalMap).length === 0) resultEvalMap = await loadAllEvalDocs();
+  exportAllExcel();
+});
+
+// ---- 개별 학과 출력/PDF ----
+function buildDeptPrintHtml(dept, ev, template) {
+  const quant = (ev && ev.quant) || {};
+  const bonus = (ev && ev.bonus) || {};
+  const qSum = quantSumFromData(template, quant);
+  const bSum = bonusSumFromData(bonus);
+  const total = qSum + bSum;
+
+  const coreRows = template.core.map((group, gi) => {
+    const label = group.label;
+    const trs = group.targets.map((t, ti) => {
+      if (!t.included) return "";
+      const r = quant[`core_${gi}_${ti}`] || {};
+      return `<tr><td>${t.target}</td><td>${r.num ?? "-"}</td><td>${r.den ?? "-"}</td><td>${t.subMax}</td><td>${r.score ?? "-"}</td><td>${r.remark ?? ""}</td></tr>`;
+    }).join("");
+    const gs = coreScoreFromQuant(template, quant, gi);
+    return `<h4>${label} (배점 ${group.categoryMax}, 산출점수 ${gs == null ? "-" : gs.toFixed(2)})</h4>
+      <table class="p-table"><thead><tr><th>평가대상</th><th>분자</th><th>분모</th><th>배점</th><th>점수</th><th>비고</th></tr></thead><tbody>${trs}</tbody></table>`;
+  }).join("");
+
+  const subRow = (title, id, keys, labels, item) => {
+    const r = quant[id] || {};
+    const inv = r.in || {};
+    const cells = keys.map((k, i) => `<td>${labels[i]}: ${inv[k] ?? "-"}</td>`).join("");
+    return `<tr><td>${title}</td>${cells}<td>${item ? item.max : "-"}</td><td>${r.score ?? "-"}</td><td>${r.remark ?? ""}</td></tr>`;
+  };
+  const teacherRows = (template.teacher || []).map((item, idx) => {
+    const metaLabels = idx === 0 ? ["기준시간이수 교원수", "학과소속교원수"] : ["교원연수시간총합", "학과소속교원수"];
+    const keys = idx === 0 ? ["trained", "total"] : ["sum", "total2"];
+    return subRow(item.label, `teacher_${idx}`, keys, metaLabels, item);
+  }).join("");
+  const equipRows = (template.equipment || []).map((item, idx) => {
+    const metaLabels = idx === 0 ? ["활용시간", "고가장비활용계획시간"] : ["지적건수"];
+    const keys = idx === 0 ? ["used", "planned"] : ["count"];
+    return subRow(item.label, `equip_${idx}`, keys, metaLabels, item);
+  }).join("");
+  const promoRows = (template.promotion || []).map((item, idx) => {
+    const metaLabels = idx === 0 ? ["홍보건수"] : ["체결및실적건수"];
+    const keys = ["count"];
+    return subRow(item.label, `promo_${idx}`, keys, metaLabels, item);
+  }).join("");
+
+  const bonusRows = (template.bonus || []).map((item, idx) => {
+    const r = bonus[`bonus_${idx}`] || {};
+    return `<tr><td>${item.label}</td><td>${item.max}</td><td>${r.score ?? "-"}</td><td>${r.remark ?? ""}</td></tr>`;
+  }).join("");
+  const penaltyRows = (template.penalty || []).map((item, idx) => {
+    const r = bonus[`penalty_${idx}`] || {};
+    return `<tr><td>${item.label}</td><td>${item.max}</td><td>${r.score ?? "-"}</td><td>${r.remark ?? ""}</td></tr>`;
+  }).join("");
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${dept.dept} 평가결과</title>
+  <style>
+    body{font-family:'Malgun Gothic',sans-serif;padding:24px;color:#1b2430;}
+    h2{margin:0 0 4px;} h4{margin:18px 0 6px;color:#1b3a63;}
+    table.p-table{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:12.5px;}
+    table.p-table th, table.p-table td{border:1px solid #b9c4d1;padding:5px 7px;text-align:center;}
+    table.p-table th{background:#e9f0f9;}
+    .meta{color:#555;margin-bottom:14px;}
+    .sum-box{margin-top:16px;padding:12px;border:2px solid #1b3a63;border-radius:6px;display:flex;gap:24px;font-weight:bold;}
+    @media print { .no-print{display:none;} }
+  </style></head><body>
+  <button class="no-print" onclick="window.print()">인쇄/PDF 저장</button>
+  <h2>${dept.college} ${dept.campus} ${dept.dept}</h2>
+  <div class="meta">${dept.year}년 ${dept.type} · 분야: ${dept.field} · 상태: ${statusText(ev ? (ev.status || "draft") : "none")}</div>
+  <h3>1. 핵심성과</h3>${coreRows}
+  <h3>2. 교원운영</h3><table class="p-table"><thead><tr><th>항목</th><th>실적1</th><th>실적2</th><th>배점</th><th>점수</th><th>비고</th></tr></thead><tbody>${teacherRows}</tbody></table>
+  <h3>3. 장비운영</h3><table class="p-table"><thead><tr><th>항목</th><th>실적1</th><th>실적2</th><th>배점</th><th>점수</th><th>비고</th></tr></thead><tbody>${equipRows}</tbody></table>
+  <h3>4. 홍보/산학</h3><table class="p-table"><thead><tr><th>항목</th><th>실적1</th><th>실적2</th><th>배점</th><th>점수</th><th>비고</th></tr></thead><tbody>${promoRows}</tbody></table>
+  <h3>5. 가점</h3><table class="p-table"><thead><tr><th>항목</th><th>배점</th><th>점수</th><th>비고</th></tr></thead><tbody>${bonusRows}</tbody></table>
+  <h3>6. 감점</h3><table class="p-table"><thead><tr><th>항목</th><th>배점</th><th>점수</th><th>비고</th></tr></thead><tbody>${penaltyRows}</tbody></table>
+  <div class="sum-box"><span>정량평가합계: ${qSum.toFixed(2)}</span><span>가점/감점합계: ${bSum.toFixed(2)}</span><span>최종점수: ${total.toFixed(2)}</span></div>
+  </body></html>`;
+}
+
+function openDeptPrint(code) {
+  const dept = DEPARTMENTS.find(d => d.code === code);
+  if (!dept) return;
+  const template = TEMPLATES[`${dept.year}_${dept.type}`];
+  const ev = resultEvalMap[code] || null;
+  const html = buildDeptPrintHtml(dept, ev, template);
+  const win = window.open("", "_blank");
+  if (!win) { alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
 
 // ---------------------------------------------------------------
 // 초기화

@@ -168,9 +168,23 @@
       <!-- 평가결과 조회 -->
       <section id="menuResult" class="menu-panel" style="display:none;">
         <div class="panel">
-          <div class="panel-head"><h2>평가결과 조회</h2></div>
+          <div class="panel-head"><h2>평가결과 조회</h2>
+            <button class="btn btn-primary" id="btnExportAllExcel">전체 엑셀 다운로드</button>
+          </div>
           <div class="panel-body">
-            <p style="color:var(--c-text-mute);">평가데이터 입력 기능 완료 후 추가 예정입니다.</p>
+            <div class="toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+              <select id="rYear"><option value="">년도 전체</option><option value="2024">2024</option><option value="2025">2025</option></select>
+              <select id="rType"><option value="">구분 전체</option><option value="신설">신설</option><option value="개편">개편</option></select>
+              <select id="rField"><option value="">분야 전체</option></select>
+              <select id="rStatus"><option value="">상태 전체</option><option value="done">최종완료</option><option value="draft">임시저장</option><option value="none">미입력</option></select>
+              <input type="text" id="rSearch" placeholder="대학/캠퍼스/학과 검색" style="flex:1;min-width:200px;">
+            </div>
+            <div style="overflow:auto;">
+              <table id="resultTable" class="eval-table" style="width:100%;">
+                <thead><tr><th>대학</th><th>캠퍼스</th><th>학과</th><th>년도</th><th>구분</th><th>분야</th><th>정량평가합계</th><th>가점/감점합계</th><th>최종점수</th><th>상태</th><th>출력</th></tr></thead>
+                <tbody id="resultTbody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -180,6 +194,7 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script type="module" src="src/app.js"></script>
 </body>
 </html>
