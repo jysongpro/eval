@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.7.0";
+export const APP_VERSION = "v1.7.1";
 const BUILD_DATE = "2026-10-22";
 
 import {
@@ -929,7 +929,7 @@ function buildDeptPrintHtml(dept, ev, template) {
     }).join("");
     const gs = coreScoreFromQuant(template, quant, gi);
     return `<h4>${label} (배점 ${group.categoryMax}, 산출점수 ${gs == null ? "-" : gs.toFixed(2)})</h4>
-      <table class="p-table"><thead><tr><th>평가대상</th><th>분자</th><th>분모</th><th>배점</th><th>점수</th><th>비고</th></tr></thead><tbody>${trs}</tbody></table>`;
+      <table class="p-table"><thead><tr><th>평가대상</th><th>${CORE_LABELS[label]?.num || '분자'}</th><th>${CORE_LABELS[label]?.den || '분모'}</th><th>배점</th><th>점수</th><th>비고</th></tr></thead><tbody>${trs}</tbody></table>`;
   }).join("");
 
   const subRow = (title, id, keys, labels, item) => {
