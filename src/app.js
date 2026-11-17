@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.7.1";
+export const APP_VERSION = "v1.9.0";
 const BUILD_DATE = "2026-10-22";
 
 import {
@@ -313,7 +313,7 @@ function renderQuantTab(template) {
             <td><input type="number" min="0" step="1" class="num-in" data-id="${id}" data-field="num" placeholder="분자"></td>
             <td><input type="number" min="0" step="1" class="num-in" data-id="${id}" data-field="den" placeholder="분모"></td>
             <td class="pct-cell" data-id="${id}">-</td>
-            <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${t.subMax}" data-group="core_${gi}"></td>
+            <td><input type="number" step="0.01" class="num-in score-in" data-id="${id}" data-field="score" data-max="${t.subMax}" data-group="core_${gi}" readonly></td>
             ${groupExtraCells}
             ${remarkCell(id)}
           </tr>`;
@@ -347,6 +347,52 @@ const CORE_LABELS = {
   "재학생비율": { num: "재학생수", den: "입학정원" },
   "취업률": { num: "취업자수", den: "취업대상자수" }
 };
+
+// 취업률 구간별 득점표(만점 28점 기준, 공식 자료 그대로). 하한(min) 이상 ~ 다음 구간 미만.
+// 득점을 28로 나눈 뒤 평가대상별 배점(subMax, 보통 10점)에 비례 환산한다.
+const EMPLOYMENT_BANDS = {
+  "학위과정": [
+    [0, 0], [41, 0.5], [42, 1.0], [43, 1.5], [44, 2.0], [45, 2.5], [46, 3.0], [47, 3.5],
+    [48, 4.0], [49, 5.0], [50, 6.0], [51, 7.0], [52, 8.0], [53, 9.0], [54, 10.0], [55, 11.0],
+    [56, 12.0], [57, 12.5], [58, 13.0], [59, 13.6], [60, 14.0], [65, 15.5], [70, 17.0],
+    [71, 17.4], [72, 17.6], [73, 18.0], [74, 18.6], [75, 19.4], [76, 20.0], [77, 20.8],
+    [78, 21.8], [79, 23.0], [80, 25.0], [81, 26.0], [82, 27.0], [83, 28.0]
+  ],
+  "하이테크": [
+    [0, 0], [38, 0.5], [39, 1.0], [40, 1.5], [41, 2.0], [42, 2.5], [43, 3.0], [44, 3.5],
+    [45, 4.0], [46, 5.0], [47, 6.0], [48, 7.0], [49, 8.0], [50, 9.0], [51, 10.0], [52, 11.0],
+    [53, 12.0], [54, 12.5], [55, 13.0], [56, 13.6], [57, 14.0], [62, 15.5], [67, 17.0],
+    [68, 17.4], [69, 17.6], [70, 18.0], [71, 18.6], [72, 19.4], [73, 20.0], [74, 20.8],
+    [75, 21.8], [76, 23.0], [77, 25.0], [78, 26.0], [79, 27.0], [80, 28.0]
+  ],
+  "전문기술": [
+    [0, 0], [38, 0.5], [39, 1.0], [40, 1.5], [41, 2.0], [42, 2.5], [43, 3.0], [44, 3.5],
+    [45, 4.0], [46, 5.0], [47, 6.0], [48, 7.0], [49, 8.0], [50, 9.0], [51, 10.0], [52, 11.0],
+    [53, 12.0], [54, 12.5], [55, 13.0], [56, 13.6], [57, 14.0], [62, 15.5], [67, 17.0],
+    [68, 17.4], [69, 17.6], [70, 18.0], [71, 18.6], [72, 19.4], [73, 20.0], [74, 20.8],
+    [75, 21.8], [76, 23.0], [77, 25.0], [78, 26.0], [79, 27.0], [80, 28.0]
+  ],
+  "중장년특화": [
+    [0, 0], [34, 0.4], [35, 0.9], [36, 1.4], [37, 1.9], [38, 2.4], [39, 2.9], [40, 3.4],
+    [41, 3.9], [42, 4.9], [43, 5.9], [44, 6.9], [45, 7.9], [46, 8.9], [47, 9.9], [48, 10.9],
+    [49, 11.9], [50, 12.9], [51, 13.9], [52, 14.9], [53, 15.9], [54, 16.9], [55, 18.4],
+    [56, 19.9], [57, 21.4], [62, 22.9], [67, 24.4], [68, 25.6], [69, 26.8], [70, 28.0]
+  ]
+};
+const EMPLOYMENT_FULL_SCORE = 28;
+
+// 취업률(%) → 구간표의 득점(28점 만점)을 찾아 배점(max)에 비례 환산한 점수를 반환한다.
+function employmentScore(targetName, pctValue, max) {
+  const bands = EMPLOYMENT_BANDS[targetName];
+  const m = Number(max) || 0;
+  if (!bands) return 0;
+  let band = bands[0][1];
+  for (const [threshold, sc] of bands) {
+    if (pctValue >= threshold) band = sc; else break;
+  }
+  const score = (band / EMPLOYMENT_FULL_SCORE) * m;
+  return Math.min(score, m);
+}
 
 // 핵심성과 그룹(입학충원율/재학생비율/취업률)의 산출점수 계산:
 // 분모(실적 분모)가 0이거나 미입력인 평가대상은 제외하고, 나머지 포함 항목들의
@@ -523,10 +569,20 @@ function onQuantInput(e) {
     const maxInput = document.querySelector(`.score-in[data-id="${id}"]`);
     const max = Number(maxInput?.dataset.max || 0);
     const pctCell = document.querySelector(`.pct-cell[data-id="${id}"]`);
+    const giNum = id.startsWith("core_") ? Number(id.split("_")[1]) : null;
+    const group = giNum != null && currentTemplate ? currentTemplate.core[giNum] : null;
+    const tiNum = id.startsWith("core_") ? Number(id.split("_")[2]) : null;
+    const target = group && tiNum != null ? group.targets[tiNum] : null;
+    const isEmployment = group && group.label === "취업률";
     if (row.num != null && row.den) {
       const pct = row.num / row.den;
-      const score = Math.min(pct * max, max);
       if (pctCell) pctCell.textContent = (pct * 100).toFixed(1) + "%";
+      let score;
+      if (isEmployment) {
+        score = employmentScore(target ? target.target : "", pct * 100, max);
+      } else {
+        score = Math.min(pct * max, max);
+      }
       if (maxInput) maxInput.value = score.toFixed(2);
       currentForm.quant[id].score = Number(score.toFixed(2));
     } else {
