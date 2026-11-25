@@ -895,54 +895,58 @@ const CORE_GROUPS = ["입학충원률", "재학생비율", "취업률"];
 const CORE_TARGETS = ["학위과정", "하이테크", "전문기술", "중장년특화"];
 
 function buildExcelHeader() {
-  const h = ["대학", "캠퍼스", "학과", "년도", "구분", "분야", "상태"];
-  CORE_GROUPS.forEach(g => {
-    CORE_TARGETS.forEach(t => {
-      h.push(`${g}-${t}-분자`, `${g}-${t}-분모`, `${g}-${t}-점수`, `${g}-${t}-비고`);
-    });
-    h.push(`${g}-산출점수`);
-  });
-  h.push("연수참여율-기준시간이수교원수", "연수참여율-학과소속교원수", "연수참여율-점수", "연수참여율-비고");
-  h.push("전공연수실적-교원연수시간총합", "전공연수실적-학과소속교원수", "전공연수실적-점수", "전공연수실적-비고");
-  h.push("장비운영실적-활용시간", "장비운영실적-고가장비활용계획시간", "장비운영실적-점수", "장비운영실적-비고");
-  h.push("장비관리실적-지적건수", "장비관리실적-점수", "장비관리실적-비고");
-  h.push("외부홍보실적-홍보건수", "외부홍보실적-점수", "외부홍보실적-비고");
-  h.push("MOU실적-체결및실적건수", "MOU실적-점수", "MOU실적-비고");
-  for (let i = 0; i < BONUS_COUNT; i++) h.push(`가점${i + 1}-점수`, `가점${i + 1}-비고`);
-  for (let i = 0; i < PENALTY_COUNT; i++) h.push(`감점${i + 1}-점수`, `감점${i + 1}-비고`);
-  h.push("정량평가합계", "가점감점합계", "최종점수");
-  return h;
+  return [
+    "년도", "구분", "분야", "대학", "캠퍼스", "학과",
+    "1-1.입학충원률", "1-2.재학생비율점수", "1-3.취업률",
+    "2-1.교원운영-연수참여율", "2-2.교원운영-전공분야연수시간",
+    "3-1.장비운영-장비운영실적", "3-2.장비관리실적",
+    "4-1.외부홍보실적", "4-2.산학-MOU체결실적",
+    "정량평가 합계", "가점 점수", "최종점수", "비고란"
+  ];
 }
 
 function buildExcelRow(dept, ev, template) {
   const quant = (ev && ev.quant) || {};
   const bonus = (ev && ev.bonus) || {};
-  const row = [dept.college, dept.campus, dept.dept, dept.year, dept.type, dept.field, statusText(ev ? (ev.status || "draft") : "none")];
-  template.core.forEach((group, gi) => {
-    group.targets.forEach((t, ti) => {
-      const r = quant[`core_${gi}_${ti}`] || {};
-      row.push(r.num ?? "", r.den ?? "", r.score ?? "", r.remark ?? "");
-    });
+  const row = [dept.year, dept.type, dept.field, dept.college, dept.campus, dept.dept];
+
+  // 1-1~1-3: 핵심성과 그룹별 산출점수
+  CORE_GROUPS.forEach((label, gi) => {
     const gs = coreScoreFromQuant(template, quant, gi);
     row.push(gs == null ? "" : Number(gs.toFixed(2)));
   });
-  const sub = (id, keys) => {
+
+  // 2-1, 2-2: 교원운영 / 3-1, 3-2: 장비운영 / 4-1, 4-2: 홍보산학 — 항목별 점수
+  const subScore = (id) => {
     const r = quant[id] || {};
-    const inv = r.in || {};
-    keys.forEach(k => row.push(inv[k] ?? ""));
-    row.push(r.score ?? "", r.remark ?? "");
+    return r.score == null || r.score === "" ? "" : Number(r.score);
   };
-  sub("teacher_0", ["trained", "total"]);
-  sub("teacher_1", ["sum", "total2"]);
-  sub("equip_0", ["used", "planned"]);
-  sub("equip_1", ["count"]);
-  sub("promo_0", ["count"]);
-  sub("promo_1", ["count"]);
-  for (let i = 0; i < BONUS_COUNT; i++) { const r = bonus[`bonus_${i}`] || {}; row.push(r.score ?? "", r.remark ?? ""); }
-  for (let i = 0; i < PENALTY_COUNT; i++) { const r = bonus[`penalty_${i}`] || {}; row.push(r.score ?? "", r.remark ?? ""); }
+  row.push(subScore("teacher_0"), subScore("teacher_1"));
+  row.push(subScore("equip_0"), subScore("equip_1"));
+  row.push(subScore("promo_0"), subScore("promo_1"));
+
   const qSum = quantSumFromData(template, quant);
   const bSum = bonusSumFromData(bonus);
   row.push(ev ? Number(qSum.toFixed(2)) : "", ev ? Number(bSum.toFixed(2)) : "", ev ? Number((qSum + bSum).toFixed(2)) : "");
+
+  // 비고란: 모든 비고 내용을 "[항목명] 내용" 형태로 모아 한 셀에 표시
+  const remarks = [];
+  const addRemark = (label, r) => { if (r && r.remark) remarks.push(`[${label}] ${r.remark}`); };
+  template.core.forEach((group, gi) => {
+    group.targets.forEach((t, ti) => {
+      addRemark(`${group.label}-${t.target}`, quant[`core_${gi}_${ti}`]);
+    });
+  });
+  addRemark("연수참여율", quant.teacher_0);
+  addRemark("전공연수실적", quant.teacher_1);
+  addRemark("장비운영실적", quant.equip_0);
+  addRemark("장비관리실적", quant.equip_1);
+  addRemark("외부홍보실적", quant.promo_0);
+  addRemark("MOU실적", quant.promo_1);
+  for (let i = 0; i < BONUS_COUNT; i++) addRemark(`가점${i + 1}`, bonus[`bonus_${i}`]);
+  for (let i = 0; i < PENALTY_COUNT; i++) addRemark(`감점${i + 1}`, bonus[`penalty_${i}`]);
+  row.push(remarks.join(" / "));
+
   return row;
 }
 
