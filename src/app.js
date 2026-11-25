@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.9.2";
+export const APP_VERSION = "v1.9.3";
 const BUILD_DATE = "2026-10-22";
 
 import {
