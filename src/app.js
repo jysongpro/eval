@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase-config.js";
 
-export const APP_VERSION = "v1.9.3";
+export const APP_VERSION = "v1.9.4";
 const BUILD_DATE = "2026-10-22";
 
 import {
@@ -929,20 +929,9 @@ function buildExcelRow(dept, ev, template) {
   const bSum = bonusSumFromData(bonus);
   row.push(ev ? Number(qSum.toFixed(2)) : "", ev ? Number(bSum.toFixed(2)) : "", ev ? Number((qSum + bSum).toFixed(2)) : "");
 
-  // 비고란: 모든 비고 내용을 "[항목명] 내용" 형태로 모아 한 셀에 표시
+  // 비고란: 정량평가(핵심성과/교원운영/장비운영/홍보산학) 비고는 제외하고, 가점/감점 비고 내용만 "[항목명] 내용" 형태로 모아 한 셀에 표시
   const remarks = [];
   const addRemark = (label, r) => { if (r && r.remark) remarks.push(`[${label}] ${r.remark}`); };
-  template.core.forEach((group, gi) => {
-    group.targets.forEach((t, ti) => {
-      addRemark(`${group.label}-${t.target}`, quant[`core_${gi}_${ti}`]);
-    });
-  });
-  addRemark("연수참여율", quant.teacher_0);
-  addRemark("전공연수실적", quant.teacher_1);
-  addRemark("장비운영실적", quant.equip_0);
-  addRemark("장비관리실적", quant.equip_1);
-  addRemark("외부홍보실적", quant.promo_0);
-  addRemark("MOU실적", quant.promo_1);
   for (let i = 0; i < BONUS_COUNT; i++) addRemark(`가점${i + 1}`, bonus[`bonus_${i}`]);
   for (let i = 0; i < PENALTY_COUNT; i++) addRemark(`감점${i + 1}`, bonus[`penalty_${i}`]);
   row.push(remarks.join(" / "));
