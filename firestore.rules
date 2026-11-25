@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 로그인한(익명 포함) 사용자만 읽기/쓰기 허용
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if false; // 계정 등록/변경은 Firebase 콘솔 또는 별도 관리자 스크립트로 수행
+    }
+    match /evaluations/{deptCode} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
